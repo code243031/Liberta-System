@@ -7,7 +7,7 @@ public:
     ~CListenSocket();
 
     CPtrList m_ptrClientSocketList;
-    virtual void OnAccept(int nErrorCode);
+    void OnAccept(int nErrorCode);
     void CloseClientSocket(CSocket* pClient);
     void SendAllMessage(TCHAR* pszMessage);
 };

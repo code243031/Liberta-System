@@ -1,5 +1,4 @@
-﻿
-// Liberta_server.cpp: 애플리케이션에 대한 클래스 동작을 정의합니다.
+﻿// Liberta_server.cpp: 애플리케이션에 대한 클래스 동작을 정의합니다.
 //
 
 #include "pch.h"
@@ -10,31 +9,24 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
+#include "CLoginDlg.h"
 
 // CLibertaserverApp
-
 BEGIN_MESSAGE_MAP(CLibertaserverApp, CWinApp)
 	ON_COMMAND(ID_HELP, &CWinApp::OnHelp)
 END_MESSAGE_MAP()
 
-
 // CLibertaserverApp 생성
-
 CLibertaserverApp::CLibertaserverApp()
 {
 	// TODO: 여기에 생성 코드를 추가합니다.
 	// InitInstance에 모든 중요한 초기화 작업을 배치합니다.
 }
 
-
 // 유일한 CLibertaserverApp 개체입니다.
-
 CLibertaserverApp theApp;
 
-
 // CLibertaserverApp 초기화
-
 BOOL CLibertaserverApp::InitInstance()
 {
 	CWinApp::InitInstance();
@@ -44,7 +36,6 @@ BOOL CLibertaserverApp::InitInstance()
 		AfxMessageBox(IDP_SOCKETS_INIT_FAILED);
 		return FALSE;
 	}
-
 
 	// 대화 상자에 셸 트리 뷰 또는
 	// 셸 목록 뷰 컨트롤이 포함되어 있는 경우 셸 관리자를 만듭니다.
@@ -62,7 +53,7 @@ BOOL CLibertaserverApp::InitInstance()
 	// 적절한 내용으로 수정해야 합니다.
 	SetRegistryKey(_T("로컬 애플리케이션 마법사에서 생성된 애플리케이션"));
 
-	CLibertaserverDlg dlg;
+	CLoginDlg dlg;
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)
