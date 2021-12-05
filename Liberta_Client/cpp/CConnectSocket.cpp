@@ -21,8 +21,7 @@ void CConnectSocket::OnReceive(int nErrorCode)
 
     if (Receive(szBuffer, sizeof(szBuffer)) > 0) {
         CLibertaclientDlg* pMain = (CLibertaclientDlg*)AfxGetMainWnd();
-
-        pMain->m_Chat.SetWindowTextW(szBuffer);          // 리스트에 문자열을 추가한다.
+        pMain->m_chat.SetWindowTextW(szBuffer);          // 리스트에 문자열을 추가한다.
     }
     CSocket::OnReceive(nErrorCode);
 }

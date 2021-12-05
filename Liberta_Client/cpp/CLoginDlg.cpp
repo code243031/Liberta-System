@@ -56,11 +56,13 @@ void CLoginDlg::OnBnClickedOk()
 	this->ShowWindow(SW_HIDE);
 
 	CLibertaclientDlg dlg;
+	dlg.ip = code;
+	dlg.port = port;
+	dlg.name = name;
+
 	dlg.DoModal();
 
 	this->ShowWindow(SW_SHOW);
-
-	CDialogEx::OnOK();
 }
 
 void CLoginDlg::OnBnClickedCancel()

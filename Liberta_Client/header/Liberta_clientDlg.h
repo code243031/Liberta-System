@@ -13,6 +13,11 @@ using namespace std;
 // CLibertaclientDlg 대화 상자
 class CLibertaclientDlg : public CDialogEx
 {
+public:
+	CString ip;
+	CString port;
+	CString name;
+
 	// 생성입니다.
 public:
 	CLibertaclientDlg(CWnd* pParent = nullptr);	// 표준 생성자입니다.
@@ -28,10 +33,16 @@ protected:
 public:
 	CStatic m_video;
 	CEdit type;
+	CEdit m_chat;
 
+	// PAC(클라이언트 측 화면) 용 캠 이미지
 	VideoCapture* capture;
 	Mat mat_frame;
 	CImage cimage_mfc;
+
+	// DOC(서버 측 화면) 용 캠 이미지 - 전송받은 장면을 활용 예정
+	// Mat mat_recv;
+	// CImage cimage_recv;
 
 	// 구현입니다.
 protected:
@@ -48,6 +59,4 @@ public:
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnDestroy();
-
-	CEdit m_Chat;
 };

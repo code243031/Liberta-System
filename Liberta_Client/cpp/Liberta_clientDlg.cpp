@@ -54,7 +54,7 @@ void CLibertaclientDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_DOC, m_video);
-	DDX_Control(pDX, IDC_CHAT, m_Chat);
+	DDX_Control(pDX, IDC_CHAT, m_chat);
 }
 
 BEGIN_MESSAGE_MAP(CLibertaclientDlg, CDialogEx)
@@ -100,7 +100,9 @@ BOOL CLibertaclientDlg::OnInitDialog()
 
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
 	m_Socket.Create();
-	if (m_Socket.Connect(_T("10.20.12.183"), 8200) == FALSE) {
+	// 학교에서 테스트 시 : 10.20.12.183
+	// 집 : 
+	if (m_Socket.Connect(this->ip, _ttoi(this->port)) == FALSE) {
 		AfxMessageBox(_T("ERROR : Failed to connect Server"));
 		// PostQuitMessage(0);
 		// return FALSE;
@@ -117,7 +119,6 @@ BOOL CLibertaclientDlg::OnInitDialog()
 	}
 
 	SetTimer(1000, 30, NULL);
-
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
