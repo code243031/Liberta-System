@@ -1,14 +1,19 @@
 ﻿// Liberta_clientDlg.h: 헤더 파일
 //
-
 #pragma once
+#pragma warning(disable : 4996)
 
 #include <opencv2/opencv.hpp>
+#include <thread>
 
 #include "CConnectSocket.h"
 
+#define BUFSIZE 44000
+
 using namespace cv;
 using namespace std;
+
+static bool flag_send;
 
 // CLibertaclientDlg 대화 상자
 class CLibertaclientDlg : public CDialogEx
@@ -39,6 +44,8 @@ public:
 	VideoCapture* capture;
 	Mat mat_frame;
 	CImage cimage_mfc;
+
+	thread send;
 
 	// DOC(서버 측 화면) 용 캠 이미지 - 전송받은 장면을 활용 예정
 	// Mat mat_recv;

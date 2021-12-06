@@ -1,6 +1,6 @@
-﻿
-// Liberta_clientDlg.cpp: 구현 파일
+﻿// Liberta_clientDlg.cpp: 구현 파일
 //
+#pragma warning(disable : 4996)
 
 #include "pch.h"
 #include "framework.h"
@@ -108,10 +108,13 @@ BOOL CLibertaclientDlg::OnInitDialog()
 		// return FALSE;
 	}
 
+	send = thread(client);
+
 	capture = new VideoCapture(0);
 	if (!capture->isOpened()) {
 		MessageBox(_T("웹캠을 열 수 없습니다.\n"));
 		capture->release();
+		return FALSE;
 	}
 	else {
 		capture->set(CAP_PROP_FRAME_WIDTH, 320);
@@ -283,6 +286,8 @@ void CLibertaclientDlg::OnBnClickedOk()
 
 void CLibertaclientDlg::OnDestroy()
 {
+	flag_send = false;
+
 	if (capture->isOpened()) {
 		capture->release();
 	}
@@ -291,4 +296,44 @@ void CLibertaclientDlg::OnDestroy()
 
 	CDialogEx::OnDestroy();
 	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
+}
+
+void client(char* server_ip) {
+	// WSA  초기화
+	WSADATA wsaData;
+	WSAStartup(MAKEWORD(2, 2), &wsaData);
+	// 소켓 만들기
+	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+	SOCKADDR_IN addr;
+	// 소켓 설정
+	ZeroMemory(&addr, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = inet_addr(server_ip);
+	addr.sin_port = htons(8201);
+
+	// TCP 연결 시도
+	connect(sock, (SOCKADDR*)&addr, sizeof(addr));
+
+	// 영상 전송
+	FILE* fp = NULL;
+	Mat image;
+	VideoCapture cap(0);
+	char buf[BUFSIZE];
+	while (flag_send) {
+		// 카메라 접근 후 파일로 작성
+		cap.read(image);
+		resize(image, image, Size(300, 400));
+		imwrite("tmp.jpg", image);
+		// 파일 열어서 읽고 전송
+		ZeroMemory(buf, NULL);
+		fopen_s(&fp, "tmp.jpg", "rb");
+		fread(buf, BUFSIZE, 1, fp);
+		send(sock, buf, sizeof(buf), 0);
+		fclose(fp);
+	}
+
+	// 마무리
+	closesocket(sock);
+	WSACleanup();
+	remove("tmp.jpg");
 }

@@ -1,53 +1,28 @@
 ﻿// Liberta_serverDlg.cpp: 구현 파일
 //
+#pragma warning(disable : 4996)
 
 #include "pch.h"
 #include "framework.h"
 #include "Liberta_server.h"
 #include "Liberta_serverDlg.h"
 #include "afxdialogex.h"
+#include "CClientSocket.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-#include "CClientSocket.h"
-
-// 응용 프로그램 정보에 사용되는 CAboutDlg 대화 상자입니다.
-class CAboutDlg : public CDialogEx
-{
-public:
-	CAboutDlg();
-
-// 대화 상자 데이터입니다.
-#ifdef AFX_DESIGN_TIME
-	enum { IDD = IDD_ABOUTBOX };
-#endif
-
-	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 지원입니다.
-
-// 구현입니다.
-protected:
-	DECLARE_MESSAGE_MAP()
-};
-
-CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
-{
-}
-
-void CAboutDlg::DoDataExchange(CDataExchange* pDX)
-{
-	CDialogEx::DoDataExchange(pDX);
-}
-
-BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
-END_MESSAGE_MAP()
 
 // CLibertaserverDlg 대화 상자
 CLibertaserverDlg::CLibertaserverDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_LIBERTA_SERVER_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+}
+
+CLibertaserverDlg::~CLibertaserverDlg()
+{
+
 }
 
 void CLibertaserverDlg::DoDataExchange(CDataExchange* pDX)
@@ -70,6 +45,66 @@ BEGIN_MESSAGE_MAP(CLibertaserverDlg, CDialogEx)
 	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
+void server() {
+	WSADATA wsaData;
+	WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+	// 소켓 만들기
+	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+	SOCKADDR_IN addr;
+
+	// 소켓 설정
+	ZeroMemory(&addr, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = INADDR_ANY;
+	addr.sin_port = htons(8202);
+
+	bind(sock, (SOCKADDR*)&addr, sizeof(addr));
+	listen(sock, 2);
+
+	// 클라이언트 연결 요청 수락
+	SOCKADDR_IN client_addr;
+	ZeroMemory(&client_addr, sizeof(client_addr));
+	int nlen = sizeof(client_addr);
+	SOCKET client_sock = accept(sock, (SOCKADDR*)&client_addr, &nlen);
+
+	// TCP 연결 수립
+	CString arr;
+	arr.Format(_T("clinet IP : %s\n"), inet_ntoa(client_addr.sin_addr));
+	AfxMessageBox(arr);
+
+	// 영상 수신
+	FILE* fp = NULL;
+	char buf[BUFSIZE];
+	char buf2[BUFSIZE];
+	Mat image;
+	while (flag_send) {
+		// 이미지 파일 수신
+		ZeroMemory(buf, NULL);
+		fopen_s(&fp, "recv.jpg", "wb");
+		// 버퍼 채우기
+		recv(client_sock, buf, sizeof(buf), 0);
+		fwrite(buf, BUFSIZE, 1, fp);
+
+		// 버퍼를 두번 받으면 딜레이가 사라진다??
+		recv(client_sock, buf2, sizeof(buf2), 0);
+		fwrite(buf2, BUFSIZE, 1, fp);
+		fclose(fp);
+		// 이미지 보여주기
+		image = imread("recv.jpg");
+		if (image.empty()) { continue; }
+		else imshow("recv", image);
+		// esc 누르면 종료
+		if (waitKey(33) > 0) break;
+	}
+
+	// 마무리
+	shutdown(sock, SD_BOTH);
+	closesocket(sock);
+	WSACleanup();
+	remove("recv.jpg");
+}
+
 
 // CLibertaserverDlg 메시지 처리기
 BOOL CLibertaserverDlg::OnInitDialog()
@@ -77,7 +112,7 @@ BOOL CLibertaserverDlg::OnInitDialog()
 	CDialogEx::OnInitDialog();
 
 	// 시스템 메뉴에 "정보..." 메뉴 항목을 추가합니다.
-
+	
 	// IDM_ABOUTBOX는 시스템 명령 범위에 있어야 합니다.
 	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
 	ASSERT(IDM_ABOUTBOX < 0xF000);
@@ -108,17 +143,8 @@ BOOL CLibertaserverDlg::OnInitDialog()
 		}
 	}
 
-	if (send.Create(8201, SOCK_STREAM)) { // 소켓생성
-		if (!send.Listen()) {
-			AfxMessageBox(_T("ERROR:Listen() return False"));
-		}
-	}
-
-	if (recv.Create(8202, SOCK_STREAM)) { // 소켓생성
-		if (!recv.Listen()) {
-			AfxMessageBox(_T("ERROR:Listen() return False"));
-		}
-	}
+	send = thread(server);
+	flag_send = true;
 
 	capture = new VideoCapture(0);
 	if (!capture->isOpened()) {
@@ -137,15 +163,7 @@ BOOL CLibertaserverDlg::OnInitDialog()
 
 void CLibertaserverDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
-	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
-	{
-		CAboutDlg dlgAbout;
-		dlgAbout.DoModal();
-	}
-	else
-	{
-		CDialogEx::OnSysCommand(nID, lParam);
-	}
+	CDialogEx::OnSysCommand(nID, lParam);
 }
 
 // 대화 상자에 최소화 단추를 추가할 경우 아이콘을 그리려면
@@ -187,6 +205,12 @@ HCURSOR CLibertaserverDlg::OnQueryDragIcon()
 void CLibertaserverDlg::OnDestroy()
 {
 	POSITION pos;
+	flag_send = false;
+	flag_recv = false;
+	
+	if (send.joinable()) {
+		send.join();
+	}
 
 	if (capture->isOpened()) {
 		capture->release();
@@ -341,10 +365,6 @@ void CLibertaserverDlg::OnTimer(UINT_PTR nIDEvent)
 
 	HDC dc = ::GetDC(m_video.m_hWnd);
 	cimage_mfc.BitBlt(dc, 0, 0);
-
-	if (send != INVALID_SOCKET) {
-		send.Send(&mat_temp, BUFSIZ);
-	}
 	
 	::ReleaseDC(m_video.m_hWnd, dc);
 	cimage_mfc.ReleaseDC();

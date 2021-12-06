@@ -5,6 +5,39 @@
 #include "Liberta_server.h"
 #include "afxdialogex.h"
 #include "CMainDlg.h"
+#include "Liberta_serverDlg.h"
+
+// users 클래스
+Users::Users()
+{
+}
+
+Users::Users(const char* nm, const char* o2, const char* temp)
+{
+	name = nm;
+	hpo2 = o2;
+	tempature = temp;
+}
+
+Users::~Users()
+{
+}
+
+CString Users::getName()
+{
+	return name;
+}
+
+CString Users::getHpo2()
+{
+	return hpo2;
+}
+
+CString Users::getTemp()
+{
+	return tempature;
+}
+
 
 // CMainDlg 대화 상자
 IMPLEMENT_DYNAMIC(CMainDlg, CDialogEx)
@@ -17,6 +50,7 @@ CMainDlg::CMainDlg(CWnd* pParent /*=nullptr*/)
 
 CMainDlg::~CMainDlg()
 {
+	users.clear();
 }
 
 void CMainDlg::DoDataExchange(CDataExchange* pDX)
@@ -27,6 +61,8 @@ void CMainDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_PAC_AGE, age);
 	DDX_Control(pDX, IDC_PAC_ADDRESS, address);
 	DDX_Control(pDX, IDC_PAC_PHONE, phone);
+	DDX_Control(pDX, IDC_LIST, pac_list);
+	DDX_Control(pDX, IDC_DATA, pac_data);
 }
 
 BEGIN_MESSAGE_MAP(CMainDlg, CDialogEx)
@@ -34,7 +70,18 @@ BEGIN_MESSAGE_MAP(CMainDlg, CDialogEx)
 	ON_BN_CLICKED(IDCANCEL, &CMainDlg::OnBnClickedCancel)
 	ON_LBN_SELCHANGE(IDC_LIST, &CMainDlg::OnLbnSelchangeList)
 	ON_WM_PAINT()
+	ON_NOTIFY(LVN_ITEMCHANGED, IDC_DATA, &CMainDlg::OnLvnItemchangedData)
 END_MESSAGE_MAP()
+
+vector<string> splitStr(const string& str) {
+	vector<string> res;
+	istringstream stream(str);
+	for (string s; stream >> s;) {
+		res.push_back(s);
+	}
+
+	return res;
+}
 
 void CMainDlg::OnPaint()
 {
@@ -47,41 +94,45 @@ BOOL CMainDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 	// TODO:  여기에 추가 초기화 작업을 추가합니다.
-	setlocale(LC_ALL, "Korean");
+	
+	CRect rt;
+	pac_data.GetWindowRect(&rt);
+	pac_data.SetExtendedStyle(LVS_EX_GRIDLINES | LVS_EX_FULLROWSELECT);
+	
+	pac_data.InsertColumn(0, _T("날짜"), LVCFMT_LEFT, rt.Width() * 0.1);
+	pac_data.InsertColumn(1, _T("산소포화도"), LVCFMT_LEFT, rt.Width() * 0.2);
+	pac_data.InsertColumn(2, _T("체온"), LVCFMT_LEFT, rt.Width() * 0.1);
+	pac_data.InsertColumn(3, _T("분류"), LVCFMT_LEFT, rt.Width() * 0.1);
+	pac_data.InsertColumn(4, _T("등급"), LVCFMT_LEFT, rt.Width() * 0.1);
 
 	// profile initiated
-	CString readfilename = _T("C:\\Users\\lg\\Documents\\projects\\Liberta_server\\Liberta_server\\res\\Patient\\Data\\data.txt");   //읽을 파일의 경로를 설정
-	int lineCount = 0; //해당 파일의 라인 수를 저장할 변수 선언
+	ifstream fin;
+	fin.open(_T("C:\\Users\\lg\\Documents\\projects\\Liberta_server\\Liberta_server\\res\\Patient\\Data\\data.txt"));
 
-	FILE* fp = NULL;   //파일 객체 fp 선언
-	CStringA csAFullAddr = CStringA(readfilename);
-	const char* cFullAddr = csAFullAddr;
-
-	_setmode(_fileno(fp), _O_U8TEXT);
-	fopen_s(&fp, cFullAddr, "rt+,ccs=UTF-8");  //파일을 열어 준다
-
-	if (fp == NULL)     //해당 파일의 경로 또는 이름이 잘못 되어 파일 객체의 값이 NULL일 경우
+	string c;
+	vector<string> conv;
+	CString res;
+	int cnt = 0;
+	while (fin.peek() != EOF)
 	{
-		AfxMessageBox(_T("ERROR : Can't file open"));
-		return FALSE;
+		getline(fin, c);
+		if (fin.fail())
+		{
+			break;
+		}
+
+		conv = splitStr(c);
+
+		// add list
+		res = conv[2].c_str();
+		pac_list.AddString(res);
+
+		// make class of users
+		Users user(conv[2].c_str(), conv[0].c_str(), conv[1].c_str());
+		users.push_back(user);
 	}
 
-	char szContent[2048] = { 0, };
-	memset(szContent, NULL, 2048);
-	BOOL bContinue = FALSE;
-
-	while (fgets(szContent, 2048, fp))   //파일을 한 줄씩 읽는다.
-	{
-		CString strContent;
-		strContent.Format(_T("%s"), szContent);
-		memset(szContent, NULL, 2048);
-		lineCount++;   //파일 라인 증가
-
-		AfxMessageBox(strContent); //해당 라인 수 출력
-	}
-
-	fclose(fp);
-
+	fin.close();
 	return TRUE;  // return TRUE unless you set the focus to a control
 				  // 예외: OCX 속성 페이지는 FALSE를 반환해야 합니다.
 }
@@ -89,8 +140,8 @@ BOOL CMainDlg::OnInitDialog()
 // CMainDlg 메시지 처리기
 void CMainDlg::OnBnClickedOk()
 {
-	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	CDialogEx::OnOK();
+	CLibertaserverDlg dlg;
+	dlg.DoModal();
 }
 
 void CMainDlg::OnBnClickedCancel()
@@ -101,7 +152,27 @@ void CMainDlg::OnBnClickedCancel()
 
 void CMainDlg::OnLbnSelchangeList()
 {
+	CString tar;
+	pac_list.GetText(pac_list.GetCurSel(), tar);
 
+	for (int i = 0; i < users.size(); i++)
+	{
+		if (users[i].getName().Compare(tar) != 0) {
+			name.SetWindowTextW(tar);
+			pac_data.DeleteAllItems();
 
+			// load items..
+
+			break;
+		}
+	}
 }
 
+void CMainDlg::OnLvnItemchangedData(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	*pResult = 0;
+
+	// pNMLV.
+}

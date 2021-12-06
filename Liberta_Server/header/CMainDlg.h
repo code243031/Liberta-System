@@ -1,14 +1,34 @@
 ﻿#pragma once
 #include "afxdialogex.h"
 
+#include <string.h>
+
 #include <opencv2/opencv.hpp>
 #include <fstream>
 #include <fcntl.h>
 #include <io.h>
+#include <vector>
 
 using namespace cv;
 using namespace std;
 // CMainDlg 대화 상자
+
+class Users {
+public:
+	Users();
+	Users(const char* nm, const char* o2, const char* temp);
+	~Users();
+
+private:
+	CString name;
+	CString hpo2;
+	CString tempature;
+
+public:
+	CString getName();
+	CString getHpo2();
+	CString getTemp();
+};
 
 class CMainDlg : public CDialogEx
 {
@@ -33,6 +53,7 @@ public:
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnLbnSelchangeList();
 	afx_msg void OnPaint();
+	afx_msg void OnLvnItemchangedData(NMHDR* pNMHDR, LRESULT* pResult);
 
 	CStatic profile;
 	CStatic name;
@@ -40,4 +61,8 @@ public:
 	CStatic address;
 	CStatic phone;
 
+	CListBox pac_list;
+
+	vector<Users> users;
+	CListCtrl pac_data;
 };
