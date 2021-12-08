@@ -6,15 +6,13 @@
 #include <thread>
 #include <opencv2/opencv.hpp>
 #include <locale.h>
+#include <WinSock2.h>
+#include <string.h>
 
-#include "CListenSocket.h"
 #define BUFSIZE 44000
 
 using namespace cv;
 using namespace std;
-
-static bool flag_recv;
-static bool flag_send;
 
 // CLibertaserverDlg 대화 상자
 class CLibertaserverDlg : public CDialogEx
@@ -23,7 +21,6 @@ class CLibertaserverDlg : public CDialogEx
 public:
 	CLibertaserverDlg(CWnd* pParent = nullptr);	// 표준 생성자입니다.
 	virtual ~CLibertaserverDlg();
-	CListenSocket m_ListenSocket;
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
@@ -43,13 +40,37 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 
+	// chat socket
+	WSADATA wsdata;
+	SOCKET m_socketServer;
+	SOCKET m_sockClient;
+	sockaddr accept_addr;
+	bool connect;
+
+	CString str_chat;
+
+	// video socket
+	WSADATA wsdata_v;
+	SOCKET m_socketServer_v;
+	SOCKET m_sockClient_v;
+	sockaddr accept_addr_v;
+	bool connect_v;
+
 public:
+	vector<CString> sendBuf;
+
 	afx_msg void OnEnChangeChat();
 	afx_msg void OnEnChangeType();
 	afx_msg void OnBnClickedOk();
 
 	afx_msg void OnStnClickedDoc();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	
+	// session create
+	bool initSession();
+	bool initVideoSession();
 
 	CStatic m_video;
 	CStatic m_video_pac;
@@ -57,10 +78,11 @@ public:
 	CEdit m_Chat;
 
 	VideoCapture* capture;
+	// doc
 	Mat mat_frame;
 	CImage cimage_mfc;
-
-	thread send;
-	thread recieve;
-
+	
+	//pac
+	Mat mat_recv;
+	CImage cimage_recv;
 };

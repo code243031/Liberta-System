@@ -6,14 +6,10 @@
 #include <opencv2/opencv.hpp>
 #include <thread>
 
-#include "CConnectSocket.h"
-
 #define BUFSIZE 44000
 
 using namespace cv;
 using namespace std;
-
-static bool flag_send;
 
 // CLibertaclientDlg 대화 상자
 class CLibertaclientDlg : public CDialogEx
@@ -26,7 +22,6 @@ public:
 	// 생성입니다.
 public:
 	CLibertaclientDlg(CWnd* pParent = nullptr);	// 표준 생성자입니다.
-	CConnectSocket m_Socket;
 
 	// 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
@@ -40,12 +35,13 @@ public:
 	CEdit type;
 	CEdit m_chat;
 
+	CString str_chat;
+
 	// PAC(클라이언트 측 화면) 용 캠 이미지
 	VideoCapture* capture;
 	Mat mat_frame;
 	CImage cimage_mfc;
 
-	thread send;
 
 	// DOC(서버 측 화면) 용 캠 이미지 - 전송받은 장면을 활용 예정
 	// Mat mat_recv;
@@ -66,4 +62,23 @@ public:
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnDestroy();
+	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+
+	// session create
+	bool initSession();
+	bool initVideoSession();
+
+protected:
+	// chat socket
+	WSADATA wsdata;
+	SOCKET m_socketClient;
+	sockaddr accept_addr;
+	bool connect;
+
+	// video socket
+	WSADATA wsdata_v;
+	SOCKET m_socketClient_v;
+	sockaddr accept_addr_v;
+	bool connect_v;
 };

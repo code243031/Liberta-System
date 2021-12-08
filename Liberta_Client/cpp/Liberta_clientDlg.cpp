@@ -12,37 +12,6 @@
 #define new DEBUG_NEW
 #endif
 
-// 응용 프로그램 정보에 사용되는 CAboutDlg 대화 상자입니다.
-class CAboutDlg : public CDialogEx
-{
-public:
-	CAboutDlg();
-
-// 대화 상자 데이터입니다.
-#ifdef AFX_DESIGN_TIME
-	enum { IDD = IDD_ABOUTBOX };
-#endif
-
-	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 지원입니다.
-
-// 구현입니다.
-protected:
-	DECLARE_MESSAGE_MAP()
-};
-
-CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
-{
-}
-
-void CAboutDlg::DoDataExchange(CDataExchange* pDX)
-{
-	CDialogEx::DoDataExchange(pDX);
-}
-
-BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
-END_MESSAGE_MAP()
-
 // CLibertaclientDlg 대화 상
 CLibertaclientDlg::CLibertaclientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_LIBERTA_CLIENT_DIALOG, pParent)
@@ -66,32 +35,58 @@ BEGIN_MESSAGE_MAP(CLibertaclientDlg, CDialogEx)
 	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
+bool CLibertaclientDlg::initSession() {
+	// 윈도우 소켓 라이브러리 초기화
+	int iRes = ::WSAStartup(MAKEWORD(0x02, 0x02), &wsdata);
+	if (iRes != ERROR_SUCCESS)
+		return false;
+
+	// 소켓 만들기
+	m_socketClient = ::socket(PF_INET, SOCK_STREAM, 0);
+	if (m_socketClient == INVALID_SOCKET)
+		return false;
+
+	iRes = ::WSAAsyncSelect(m_socketClient, m_hWnd, 10000, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
+
+	// IP와 포트를 생성한 소켓에 결합
+	SOCKADDR_IN servAddr;
+	servAddr.sin_family = AF_INET;
+	servAddr.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
+	servAddr.sin_port = htons(8200);
+	iRes = ::connect(m_socketClient, (LPSOCKADDR)&servAddr, sizeof(servAddr));
+
+	return true;
+}
+
+bool CLibertaclientDlg::initVideoSession() {
+	// 윈도우 소켓 라이브러리 초기화
+	int iRes = ::WSAStartup(MAKEWORD(0x02, 0x02), &wsdata_v);
+	if (iRes != ERROR_SUCCESS)
+		return false;
+
+	// 소켓 만들기
+	m_socketClient_v = ::socket(PF_INET, SOCK_STREAM, 0);
+	if (m_socketClient_v == INVALID_SOCKET)
+		return false;
+
+	iRes = ::WSAAsyncSelect(m_socketClient_v, m_hWnd, 10000, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
+
+	// IP와 포트를 생성한 소켓에 결합
+	SOCKADDR_IN servAddr;
+	servAddr.sin_family = AF_INET;
+	servAddr.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
+	servAddr.sin_port = htons(8201);
+	iRes = ::connect(m_socketClient_v, (LPSOCKADDR)&servAddr, sizeof(servAddr));
+
+	return true;
+}
 
 // CLibertaclientDlg 메시지 처리기
-
 BOOL CLibertaclientDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
 	// 시스템 메뉴에 "정보..." 메뉴 항목을 추가합니다.
-
-	// IDM_ABOUTBOX는 시스템 명령 범위에 있어야 합니다.
-	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
-	ASSERT(IDM_ABOUTBOX < 0xF000);
-
-	CMenu* pSysMenu = GetSystemMenu(FALSE);
-	if (pSysMenu != nullptr)
-	{
-		BOOL bNameValid;
-		CString strAboutMenu;
-		bNameValid = strAboutMenu.LoadString(IDS_ABOUTBOX);
-		ASSERT(bNameValid);
-		if (!strAboutMenu.IsEmpty())
-		{
-			pSysMenu->AppendMenu(MF_SEPARATOR);
-			pSysMenu->AppendMenu(MF_STRING, IDM_ABOUTBOX, strAboutMenu);
-		}
-	}
 
 	// 이 대화 상자의 아이콘을 설정합니다.  응용 프로그램의 주 창이 대화 상자가 아닐 경우에는
 	//  프레임워크가 이 작업을 자동으로 수행합니다.
@@ -99,16 +94,19 @@ BOOL CLibertaclientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 작은 아이콘을 설정합니다.
 
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
-	m_Socket.Create();
 	// 학교에서 테스트 시 : 10.20.12.183
 	// 집 : 
-	if (m_Socket.Connect(this->ip, _ttoi(this->port)) == FALSE) {
+	connect = initSession();
+	if (connect != true) {
 		AfxMessageBox(_T("ERROR : Failed to connect Server"));
-		// PostQuitMessage(0);
-		// return FALSE;
+		return FALSE;
 	}
 
-	send = thread(client);
+	connect_v = initVideoSession();
+	if (connect_v != true) {
+		AfxMessageBox(_T("ERROR : Failed to connect Server"));
+		return FALSE;
+	}
 
 	capture = new VideoCapture(0);
 	if (!capture->isOpened()) {
@@ -128,15 +126,7 @@ BOOL CLibertaclientDlg::OnInitDialog()
 
 void CLibertaclientDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
-	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
-	{
-		CAboutDlg dlgAbout;
-		dlgAbout.DoModal();
-	}
-	else
-	{
-		CDialogEx::OnSysCommand(nID, lParam);
-	}
+	CDialogEx::OnSysCommand(nID, lParam);
 }
 
 // 대화 상자에 최소화 단추를 추가할 경우 아이콘을 그리려면
@@ -253,6 +243,28 @@ void CLibertaclientDlg::OnTimer(UINT_PTR nIDEvent)
 			mat_temp.data, bitInfo, DIB_RGB_COLORS, SRCCOPY);
 	}
 
+	// 여기서부터 화상이미지 전송
+	if (connect_v == true) {
+		FILE* fp = NULL;
+		char buf[BUFSIZE];
+
+		// 카메라 접근 후 파일로 작성
+		imwrite("tmp.jpg", mat_frame);
+
+		// 파일 열어서 읽고 전송
+		ZeroMemory(buf, NULL);
+		fopen_s(&fp, "tmp.jpg", "rb");
+		fread(buf, BUFSIZE, 1, fp);
+
+		int iSend = ::send(m_socketClient_v, buf, sizeof(buf), 0);
+		if (iSend == SOCKET_ERROR)
+		{
+			// if Send error
+		}
+
+		fclose(fp);
+	}
+	
 	HDC dc = ::GetDC(m_video.m_hWnd);
 	cimage_mfc.BitBlt(dc, 0, 0);
 
@@ -267,73 +279,115 @@ void CLibertaclientDlg::OnBnClickedOk()
 {
 	CString str, str_chat, res;
 
-	UpdateData(TRUE);
 	GetDlgItemText(IDC_TYPE, str);
 	GetDlgItemText(IDC_CHAT, str_chat);
-
-	m_Socket.Send((LPVOID)(LPCTSTR)str, str.GetLength() * 2);
 
 	res.Append(str_chat);
 	res.Append(_T("[나] : "));
 	res.Append(str);
 	res.Append(_T("\r\n"));
 
+	CStringA conv = (CStringA)str;
+	const char* cBuff = conv.GetBuffer();
+
+	int iSend = ::send(m_socketClient, cBuff, sizeof(cBuff), 0);
+	if (iSend == SOCKET_ERROR) { // Send error
+	
+	}
+
 	SetDlgItemText(IDC_TYPE, _T(""));
 	SetDlgItemText(IDC_CHAT, res);
-
-	UpdateData(FALSE);
 }
 
 void CLibertaclientDlg::OnDestroy()
 {
-	flag_send = false;
+	POSITION pos;
 
 	if (capture->isOpened()) {
 		capture->release();
 	}
 
-	m_Socket.Close();
+	::closesocket(m_socketClient);
+	WSACleanup();
 
 	CDialogEx::OnDestroy();
 	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
 }
 
-void client(char* server_ip) {
-	// WSA  초기화
-	WSADATA wsaData;
-	WSAStartup(MAKEWORD(2, 2), &wsaData);
-	// 소켓 만들기
-	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
-	SOCKADDR_IN addr;
-	// 소켓 설정
-	ZeroMemory(&addr, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = inet_addr(server_ip);
-	addr.sin_port = htons(8201);
+LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
+{
+	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+	if (10000 == message)
+	{
+		SOCKET hSocket = (SOCKET)wParam;
 
-	// TCP 연결 시도
-	connect(sock, (SOCKADDR*)&addr, sizeof(addr));
+		switch (lParam)
+		{
+		case FD_CONNECT: // 연결됨
+			GetDlgItemText(IDC_CHAT, str_chat);
 
-	// 영상 전송
-	FILE* fp = NULL;
-	Mat image;
-	VideoCapture cap(0);
-	char buf[BUFSIZE];
-	while (flag_send) {
-		// 카메라 접근 후 파일로 작성
-		cap.read(image);
-		resize(image, image, Size(300, 400));
-		imwrite("tmp.jpg", image);
-		// 파일 열어서 읽고 전송
-		ZeroMemory(buf, NULL);
-		fopen_s(&fp, "tmp.jpg", "rb");
-		fread(buf, BUFSIZE, 1, fp);
-		send(sock, buf, sizeof(buf), 0);
-		fclose(fp);
+			str_chat.Append(_T("[SYSTEM] : 서버에 접속했습니다."));
+			str_chat.Append(_T("\r\n"));
+
+			SetDlgItemText(IDC_CHAT, str_chat);
+
+			break;
+
+		case FD_READ: // 패킷 수신
+		{
+			int addrlen = sizeof(accept_addr);
+			int addrlen_v = sizeof(accept_addr_v);
+			if (getsockname(hSocket, &accept_addr, &addrlen) == 0 && accept_addr.sa_family == AF_INET && addrlen == sizeof(accept_addr)) {
+				char cBuff[BUFSIZE];
+				memset(&cBuff, 0, sizeof(cBuff));
+				int iLen = ::recv(hSocket, cBuff, sizeof(cBuff), 0);
+
+				if (0 < iLen) { // 정상 수신되지 않을 시
+
+				}
+
+				GetDlgItemText(IDC_CHAT, str_chat);
+
+				str_chat.Append(_T("[상대방] : "));
+				str_chat.Append((CString)cBuff);
+				str_chat.Append(_T("\r\n"));
+
+				SetDlgItemText(IDC_CHAT, str_chat);
+			}
+			else if (getsockname(hSocket, &accept_addr, &addrlen) == 0 && accept_addr.sa_family == AF_INET && addrlen == sizeof(accept_addr)) {
+				// 아직 이미지 수신 미구현
+			}
+
+			break;
+		}
+		/*
+		case FD_WRITE: // 송신 가능함
+			break;
+			*/
+		case FD_CLOSE: // 종료
+			int iRes = ::closesocket(hSocket);
+			OnDestroy();
+
+			break;
+		}
+	}
+	return CDialogEx::WindowProc(message, wParam, lParam);
+}
+
+
+BOOL CLibertaclientDlg::PreTranslateMessage(MSG* pMsg)
+{
+	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+
+	if (pMsg->message == WM_KEYDOWN) {
+		if (pMsg->wParam == VK_RETURN) {
+			OnBnClickedOk();
+			return TRUE;
+		}
+		else if (pMsg->wParam == VK_ESCAPE) {
+			return TRUE;
+		}
 	}
 
-	// 마무리
-	closesocket(sock);
-	WSACleanup();
-	remove("tmp.jpg");
+	return CDialogEx::PreTranslateMessage(pMsg);
 }

@@ -65,4 +65,5 @@ public:
 
 	vector<Users> users;
 	CListCtrl pac_data;
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 };

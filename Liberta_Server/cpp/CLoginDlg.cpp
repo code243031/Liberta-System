@@ -89,7 +89,7 @@ void CLoginDlg::OnBnClickedOk()
 		}
 
 		// mysql_num_fields 함수로 테이블의 Column 수를 알아낸다
-		MYSQL_ROW row;
+		MYSQL_ROW row = nullptr;
 		CString res;
 		int num_fields = mysql_num_fields(result);
 		/*
@@ -146,4 +146,20 @@ bool sortdesc(const tuple<double, double, string>& P1,
 	const tuple<double, double, string>& P2)
 {
 	return (get<0>(P1) > get<0>(P2));
+}
+
+BOOL CLoginDlg::PreTranslateMessage(MSG* pMsg)
+{
+	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+
+	if (pMsg->message == WM_KEYDOWN) {
+		if (pMsg->wParam == VK_RETURN) {
+			return TRUE;
+		}
+		else if (pMsg->wParam == VK_ESCAPE) {
+			return TRUE;
+		}
+	}
+
+	return CDialogEx::PreTranslateMessage(pMsg);
 }
