@@ -81,4 +81,6 @@ protected:
 	SOCKET m_socketClient_v;
 	sockaddr accept_addr_v;
 	bool connect_v;
+public:
+	afx_msg void OnBnClickedCancel();
 };

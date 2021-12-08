@@ -44,6 +44,8 @@ BEGIN_MESSAGE_MAP(CLibertaserverDlg, CDialogEx)
 	ON_BN_CLICKED(IDOK, &CLibertaserverDlg::OnBnClickedOk)
 	ON_STN_CLICKED(IDC_DOC, &CLibertaserverDlg::OnStnClickedDoc)
 	ON_WM_TIMER()
+	ON_BN_CLICKED(IDCANCEL, &CLibertaserverDlg::OnBnClickedCancel)
+	ON_MESSAGE(UM_RECVIMG, &CLibertaserverDlg::OnUmRecvimg)
 END_MESSAGE_MAP()
 
 bool CLibertaserverDlg::initSession() {
@@ -62,7 +64,7 @@ bool CLibertaserverDlg::initSession() {
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	servAddr.sin_addr.s_addr = INADDR_ANY;
 	servAddr.sin_port = htons(8200);
 
 	iRes = ::bind(m_socketServer, (LPSOCKADDR)&servAddr, sizeof(servAddr));
@@ -98,7 +100,7 @@ bool CLibertaserverDlg::initVideoSession() {
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	servAddr.sin_addr.s_addr = INADDR_ANY;
 	servAddr.sin_port = htons(8201);
 
 	iRes = ::bind(m_socketServer_v, (LPSOCKADDR)&servAddr, sizeof(servAddr));
@@ -111,11 +113,10 @@ bool CLibertaserverDlg::initVideoSession() {
 		return false;
 
 	// 클라이언트 Accept
-	iRes = ::WSAAsyncSelect(m_socketServer_v, m_hWnd, 10000, FD_ACCEPT);
+	iRes = ::WSAAsyncSelect(m_socketServer_v, m_hWnd, 10001, FD_ACCEPT);
 	if (iRes != ERROR_SUCCESS)
 		return false;
-
-	AfxMessageBox(_T("됬어!"));
+ 
 	return true;
 }
 
@@ -125,24 +126,6 @@ BOOL CLibertaserverDlg::OnInitDialog()
 	CDialogEx::OnInitDialog();
 
 	// 시스템 메뉴에 "정보..." 메뉴 항목을 추가합니다.
-	
-	// IDM_ABOUTBOX는 시스템 명령 범위에 있어야 합니다.
-	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
-	ASSERT(IDM_ABOUTBOX < 0xF000);
-
-	CMenu* pSysMenu = GetSystemMenu(FALSE);
-	if (pSysMenu != nullptr)
-	{
-		BOOL bNameValid;
-		CString strAboutMenu;
-		bNameValid = strAboutMenu.LoadString(IDS_ABOUTBOX);
-		ASSERT(bNameValid);
-		if (!strAboutMenu.IsEmpty())
-		{
-			pSysMenu->AppendMenu(MF_SEPARATOR);
-			pSysMenu->AppendMenu(MF_STRING, IDM_ABOUTBOX, strAboutMenu);
-		}
-	}
 
 	// 이 대화 상자의 아이콘을 설정합니다.  응용 프로그램의 주 창이 대화 상자가 아닐 경우에는
 	//  프레임워크가 이 작업을 자동으로 수행합니다.
@@ -305,7 +288,190 @@ void CLibertaserverDlg::OnTimer(UINT_PTR nIDEvent)
 	cimage_mfc.Destroy();
 
 	// 이미지 파일 전송 받은거를 화면에 입력
-	if (!mat_recv.empty()) {
+	// 왜인지 뭔가 자꾸 안되서 일단 다른 방식 써봄
+
+	CDialogEx::OnTimer(nIDEvent);
+}
+
+void CLibertaserverDlg::OnBnClickedOk()
+{
+	CString str, str_chat, res;
+
+	GetDlgItemText(IDC_TYPE, str);
+	GetDlgItemText(IDC_CHAT, str_chat);
+
+	res.Append(str_chat);
+	res.Append(_T("[나] : "));
+	res.Append(str);
+	res.Append(_T("\r\n"));
+
+	CStringA conv = (CStringA)str;
+	const char* cBuff = conv.GetBuffer();
+
+	int iSend = ::send(m_sockClient, cBuff, sizeof(cBuff), 0);
+	if (iSend == SOCKET_ERROR)
+	{
+		// Send error
+	}
+
+	SetDlgItemText(IDC_TYPE, _T(""));
+	SetDlgItemText(IDC_CHAT, res);
+
+	SendMessageW(UM_RECVIMG);
+}
+
+void CLibertaserverDlg::OnBnClickedCancel()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	CDialogEx::OnCancel();
+}
+
+void CLibertaserverDlg::OnDestroy()
+{
+	POSITION pos;
+
+	if (capture->isOpened()) {
+		capture->release();
+	}
+
+	// 윈도우 소켓 사용 종료
+	::closesocket(m_socketServer);
+	::closesocket(m_sockClient);
+
+	::closesocket(m_socketServer_v);
+	::closesocket(m_sockClient_v);
+	WSACleanup();
+
+	CDialog::OnDestroy();
+}
+
+LRESULT CLibertaserverDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
+{
+	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+	if (10000 <= message && message <= 10005) {
+		SOCKET hSocket = (SOCKET)wParam;
+
+		switch (lParam)
+		{
+		case FD_ACCEPT:	// 클라이언트 접속
+		{
+			if (message == 10000) {
+				int iLen = sizeof(accept_addr);
+				SOCKET hSocket = ::accept(m_socketServer, &accept_addr, &iLen);
+				if (INVALID_SOCKET != hSocket) {
+					// 클라이언트 소켓의 이벤트도 받을 수 있게 접속 시 등록한다.
+					int iRes = ::WSAAsyncSelect(hSocket, m_hWnd, 10000, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
+					m_sockClient = hSocket;
+				}
+
+				GetDlgItemText(IDC_CHAT, str_chat);
+
+				str_chat.Append(_T("[SYSTEM] : 채팅룸에 접속했습니다."));
+				str_chat.Append(_T("\r\n"));
+
+				SetDlgItemText(IDC_CHAT, str_chat);
+			}
+			else if (message == 10001) {
+				int iLen = sizeof(accept_addr_v);
+				SOCKET hSocket = ::accept(m_socketServer_v, &accept_addr_v, &iLen);
+				if (INVALID_SOCKET != hSocket) {
+					// 클라이언트 소켓의 이벤트도 받을 수 있게 접속 시 등록한다.
+					int iRes = ::WSAAsyncSelect(hSocket, m_hWnd, 10001, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
+					m_sockClient_v = hSocket;
+				}
+
+				GetDlgItemText(IDC_CHAT, str_chat);
+
+				str_chat.Append(_T("[SYSTEM] : 화상채팅에 접속했습니다."));
+				str_chat.Append(_T("\r\n"));
+
+				SetDlgItemText(IDC_CHAT, str_chat);
+			}
+
+
+			break;
+		}
+		case FD_READ: // 데이터 수신
+		{
+			int addrlen = sizeof(accept_addr);
+			int addrlen_v = sizeof(accept_addr_v);
+
+			if (message == 10000) {
+				char cBuff[BUFSIZE];
+				memset(&cBuff, 0, sizeof(cBuff));
+				int iLen = ::recv(hSocket, cBuff, sizeof(cBuff), 0);
+
+				if (0 < iLen) { // 정상 수신되지 않을 시
+
+				}
+
+				GetDlgItemText(IDC_CHAT, str_chat);
+
+				str_chat.Append(_T("[상대방] : "));
+				str_chat.Append((CString)cBuff);
+				str_chat.Append(_T("\r\n"));
+
+				SetDlgItemText(IDC_CHAT, str_chat);
+			}
+			else if (message == 10001) {
+				FILE* fp = NULL;
+				char buf[BUFSIZE];
+				char buf2[BUFSIZE];
+
+				// 이미지 파일 수신
+				ZeroMemory(buf, NULL);
+				fopen_s(&fp, "recv.jpg", "wb");
+
+				// 버퍼 채우기
+				int iLen = ::recv(hSocket, buf, sizeof(buf), 0);
+				fwrite(buf, BUFSIZE, 1, fp);
+
+				// 버퍼를 두번 받으면 딜레이가 사라진다??
+				iLen = ::recv(hSocket, buf2, sizeof(buf2), 0);
+				fwrite(buf2, BUFSIZE, 1, fp);
+				fclose(fp);
+
+				mat_recv = imread("recv.jpg");
+				SendMessageW(UM_RECVIMG);
+			}
+
+			break;
+		}
+		// 소켓 종료
+		case FD_CLOSE:
+		{
+			int iRes = ::closesocket(hSocket);
+			OnDestroy();
+
+			AfxMessageBox(_T("상대방이 연결을 종료했습니다!"));
+			break;
+		}
+		}
+	}
+
+	return CDialogEx::WindowProc(message, wParam, lParam);
+}
+
+BOOL CLibertaserverDlg::PreTranslateMessage(MSG* pMsg)
+{
+	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+
+	if (pMsg->message == WM_KEYDOWN) {
+		if (pMsg->wParam == VK_RETURN) {
+			OnBnClickedOk();
+			return TRUE;
+		}
+		else if (pMsg->wParam == VK_ESCAPE) {
+			return TRUE;
+		}
+	}
+
+	return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+afx_msg LRESULT CLibertaserverDlg::OnUmRecvimg(WPARAM wParam, LPARAM lParam)
+{
+	if (!mat_recv.empty() && connect_v == true) {
 		int bpp = 8 * mat_recv.elemSize();
 		assert((bpp == 8 || bpp == 24 || bpp == 32));
 
@@ -387,164 +553,8 @@ void CLibertaserverDlg::OnTimer(UINT_PTR nIDEvent)
 		cimage_recv.Destroy();
 	}
 
-	CDialogEx::OnTimer(nIDEvent);
+	return 0;
 }
-
-void CLibertaserverDlg::OnBnClickedOk()
-{
-	CString str, str_chat, res;
-
-	GetDlgItemText(IDC_TYPE, str);
-	GetDlgItemText(IDC_CHAT, str_chat);
-
-	res.Append(str_chat);
-	res.Append(_T("[나] : "));
-	res.Append(str);
-	res.Append(_T("\r\n"));
-
-	CStringA conv = (CStringA)str;
-	const char* cBuff = conv.GetBuffer();
-
-	int iSend = ::send(m_sockClient, cBuff, sizeof(cBuff), 0);
-	if (iSend == SOCKET_ERROR)
-	{
-		// Send error
-	}
-
-	SetDlgItemText(IDC_TYPE, _T(""));
-	SetDlgItemText(IDC_CHAT, res);
-}
-
-
-void CLibertaserverDlg::OnDestroy()
-{
-	POSITION pos;
-
-	if (capture->isOpened()) {
-		capture->release();
-	}
-
-	// 윈도우 소켓 사용 종료
-	::closesocket(m_sockClient);
-	::closesocket(m_socketServer);
-	WSACleanup();
-
-	CDialog::OnDestroy();
-}
-
-LRESULT CLibertaserverDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
-{
-	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
-	if (10000 == message) {
-		SOCKET hSocket = (SOCKET)wParam;
-
-		switch (lParam)
-		{
-		case FD_ACCEPT:	// 클라이언트 접속
-		{
-			int iLen = sizeof(accept_addr);
-			SOCKET hSocket = ::accept(m_socketServer, &accept_addr, &iLen);
-			if (INVALID_SOCKET != hSocket) {
-				// 클라이언트 소켓의 이벤트도 받을 수 있게 접속 시 등록한다.
-				int iRes = ::WSAAsyncSelect(hSocket, m_hWnd, 10000, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
-				m_sockClient = hSocket;
-			}
-
-			GetDlgItemText(IDC_CHAT, str_chat);
-
-			str_chat.Append(_T("[SYSTEM] : 상대방이 접속했습니다."));
-			str_chat.Append(_T("\r\n"));
-
-			SetDlgItemText(IDC_CHAT, str_chat);
-
-			break;
-		}
-		case FD_READ: // 데이터 수신
-		{
-			int addrlen = sizeof(accept_addr);
-			int addrlen_v = sizeof(accept_addr_v);
-
-			if (getsockname(hSocket, &accept_addr, &addrlen) == 0 && accept_addr.sa_family == AF_INET && addrlen == sizeof(accept_addr)) {
-				char cBuff[BUFSIZE];
-				memset(&cBuff, 0, sizeof(cBuff));
-				int iLen = ::recv(hSocket, cBuff, sizeof(cBuff), 0);
-
-				if (0 < iLen) { // 정상 수신되지 않을 시
-
-				}
-
-				GetDlgItemText(IDC_CHAT, str_chat);
-
-				str_chat.Append(_T("[상대방] : "));
-				str_chat.Append((CString)cBuff);
-				str_chat.Append(_T("\r\n"));
-
-				SetDlgItemText(IDC_CHAT, str_chat);
-			}
-			else if (getsockname(hSocket, &accept_addr_v, &addrlen_v) == 0 && accept_addr_v.sa_family == AF_INET && addrlen_v == sizeof(accept_addr_v)) {
-				FILE* fp = NULL;
-				char buf[BUFSIZE];
-				char buf2[BUFSIZE];
-
-				// 이미지 파일 수신
-				ZeroMemory(buf, NULL);
-				fopen_s(&fp, "recv.jpg", "wb");
-
-				// 버퍼 채우기
-				int iLen = ::recv(hSocket, buf, sizeof(buf), 0);
-				fwrite(buf, BUFSIZE, 1, fp);
-
-				// 버퍼를 두번 받으면 딜레이가 사라진다??
-				iLen = ::recv(hSocket, buf2, sizeof(buf2), 0);
-				fwrite(buf2, BUFSIZE, 1, fp);
-				fclose(fp);
-
-				// 이미지 저장
-				mat_recv = imread("recv.jpg");
-
-				GetDlgItemText(IDC_CHAT, str_chat);
-
-				str_chat.Append(_T("[SYSTEM] : 상대방이 이미지를 전송함."));
-				str_chat.Append(_T("\r\n"));
-
-				SetDlgItemText(IDC_CHAT, str_chat);
-			}
-
-			break;
-		}
-		// 소켓 종료
-		case FD_CLOSE:
-		{
-			int iRes = ::closesocket(hSocket);
-			OnDestroy();
-
-			AfxMessageBox(_T("상대방이 연결을 종료했습니다!"));
-
-			break;
-		}
-		}
-	}
-
-	return CDialogEx::WindowProc(message, wParam, lParam);
-}
-
-BOOL CLibertaserverDlg::PreTranslateMessage(MSG* pMsg)
-{
-	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
-
-	if (pMsg->message == WM_KEYDOWN) {
-		if (pMsg->wParam == VK_RETURN) {
-			OnBnClickedOk();
-			return TRUE;
-		}
-		else if (pMsg->wParam == VK_ESCAPE) {
-			return TRUE;
-		}
-	}
-
-	return CDialogEx::PreTranslateMessage(pMsg);
-}
-
 
 void CLibertaserverDlg::OnEnChangeChat()
 {

@@ -10,6 +10,7 @@
 #include <string.h>
 
 #define BUFSIZE 44000
+#define UM_RECVIMG WM_USER + 1
 
 using namespace cv;
 using namespace std;
@@ -85,4 +86,12 @@ public:
 	//pac
 	Mat mat_recv;
 	CImage cimage_recv;
+
+protected:
+	
+public:
+	afx_msg void OnBnClickedCancel();
+protected:
+	afx_msg LRESULT OnUmRecvimg(WPARAM wParam, LPARAM lParam);
+
 };

@@ -32,7 +32,9 @@ BEGIN_MESSAGE_MAP(CLibertaclientDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDOK, &CLibertaclientDlg::OnBnClickedOk)
 	ON_WM_TIMER()
+	ON_WM_TIMER()
 	ON_WM_DESTROY()
+	ON_BN_CLICKED(IDCANCEL, &CLibertaclientDlg::OnBnClickedCancel)
 END_MESSAGE_MAP()
 
 bool CLibertaclientDlg::initSession() {
@@ -299,6 +301,12 @@ void CLibertaclientDlg::OnBnClickedOk()
 	SetDlgItemText(IDC_CHAT, res);
 }
 
+void CLibertaclientDlg::OnBnClickedCancel()
+{
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	CDialogEx::OnCancel();
+}
+
 void CLibertaclientDlg::OnDestroy()
 {
 	POSITION pos;
@@ -354,7 +362,7 @@ LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 
 				SetDlgItemText(IDC_CHAT, str_chat);
 			}
-			else if (getsockname(hSocket, &accept_addr, &addrlen) == 0 && accept_addr.sa_family == AF_INET && addrlen == sizeof(accept_addr)) {
+			if (getsockname(hSocket, &accept_addr, &addrlen) == 0 && accept_addr.sa_family == AF_INET && addrlen == sizeof(accept_addr)) {
 				// 아직 이미지 수신 미구현
 			}
 
@@ -368,12 +376,13 @@ LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 			int iRes = ::closesocket(hSocket);
 			OnDestroy();
 
+			AfxMessageBox(_T("상대방과의 연결이 종료되었습니다!"));
+			OnBnClickedCancel();
 			break;
 		}
 	}
 	return CDialogEx::WindowProc(message, wParam, lParam);
 }
-
 
 BOOL CLibertaclientDlg::PreTranslateMessage(MSG* pMsg)
 {
