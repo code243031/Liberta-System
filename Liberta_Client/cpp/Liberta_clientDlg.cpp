@@ -53,7 +53,7 @@ bool CLibertaclientDlg::initSession() {
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
+	servAddr.sin_addr.s_addr = inet_addr("192.168.219.105"); // ip바꿔 10.20.13.181, 125.181.111.227
 	servAddr.sin_port = htons(8200);
 	iRes = ::connect(m_socketClient, (LPSOCKADDR)&servAddr, sizeof(servAddr));
 
@@ -71,12 +71,12 @@ bool CLibertaclientDlg::initVideoSession() {
 	if (m_socketClient_v == INVALID_SOCKET)
 		return false;
 
-	iRes = ::WSAAsyncSelect(m_socketClient_v, m_hWnd, 10000, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
+	iRes = ::WSAAsyncSelect(m_socketClient_v, m_hWnd, 10001, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
 
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
+	servAddr.sin_addr.s_addr = inet_addr("192.168.219.105"); // ip바꿔 10.20.13.181, 192.168.219.103
 	servAddr.sin_port = htons(8201);
 	iRes = ::connect(m_socketClient_v, (LPSOCKADDR)&servAddr, sizeof(servAddr));
 
@@ -258,7 +258,7 @@ void CLibertaclientDlg::OnTimer(UINT_PTR nIDEvent)
 		fopen_s(&fp, "tmp.jpg", "rb");
 		fread(buf, BUFSIZE, 1, fp);
 
-		int iSend = ::send(m_socketClient_v, buf, sizeof(buf), 0);
+		int iSend = ::send(m_socketClient_v, buf, BUFSIZE, 0);
 		if (iSend == SOCKET_ERROR)
 		{
 			// if Send error
@@ -325,7 +325,7 @@ void CLibertaclientDlg::OnDestroy()
 LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
-	if (10000 == message)
+	if (10000 <= message && message <= 10005)
 	{
 		SOCKET hSocket = (SOCKET)wParam;
 
