@@ -8,10 +8,6 @@
 #include "Liberta_serverDlg.h"
 
 // users 클래스
-Users::Users()
-{
-}
-
 Users::Users(const char* nm, const char* o2, const char* temp)
 {
 	name = nm;
@@ -133,6 +129,7 @@ BOOL CMainDlg::OnInitDialog()
 	}
 
 	fin.close();
+
 	return TRUE;  // return TRUE unless you set the focus to a control
 				  // 예외: OCX 속성 페이지는 FALSE를 반환해야 합니다.
 }

@@ -7,6 +7,7 @@
 #include <thread>
 
 #define BUFSIZE 44000
+#define UM_RECVIMG WM_USER + 1
 
 using namespace cv;
 using namespace std;
@@ -14,12 +15,7 @@ using namespace std;
 // CLibertaclientDlg 대화 상자
 class CLibertaclientDlg : public CDialogEx
 {
-public:
-	CString ip;
-	CString port;
-	CString name;
-
-	// 생성입니다.
+// 생성입니다.
 public:
 	CLibertaclientDlg(CWnd* pParent = nullptr);	// 표준 생성자입니다.
 
@@ -29,23 +25,7 @@ public:
 #endif
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 지원입니다.
-
-public:
-	CStatic m_video;
-	CEdit type;
-	CEdit m_chat;
-
-	CString str_chat;
-
-	// PAC(클라이언트 측 화면) 용 캠 이미지
-	VideoCapture* capture;
-	Mat mat_frame;
-	CImage cimage_mfc;
-
-
-	// DOC(서버 측 화면) 용 캠 이미지 - 전송받은 장면을 활용 예정
-	// Mat mat_recv;
-	// CImage cimage_recv;
+	afx_msg void OnDestroy();
 
 	// 구현입니다.
 protected:
@@ -56,31 +36,60 @@ protected:
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
+	afx_msg LRESULT OnUmRecvimg(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 
-public:
-	afx_msg void OnBnClickedOk();
-	afx_msg void OnTimer(UINT_PTR nIDEvent);
-	afx_msg void OnDestroy();
-	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
-	virtual BOOL PreTranslateMessage(MSG* pMsg);
-
-	// session create
-	bool initSession();
-	bool initVideoSession();
-
-protected:
 	// chat socket
 	WSADATA wsdata;
 	SOCKET m_socketClient;
 	sockaddr accept_addr;
 	bool connect;
 
-	// video socket
+	// video socket(just send)
 	WSADATA wsdata_v;
 	SOCKET m_socketClient_v;
 	sockaddr accept_addr_v;
 	bool connect_v;
+
+	// video socket
+	WSADATA wsdata_s;
+	SOCKET m_socketClient_s;
+	sockaddr accept_addr_s;
+	bool connect_s;
+
 public:
+	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedCancel();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+
+	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+
+	// session create
+	bool initSession();
+	void initVideoSession();
+
+	CStatic m_video;
+	CStatic m_video_pac;
+	CEdit type;
+	CEdit m_chat;
+
+	CString str_chat;// 입력한 채팅 받아오기용
+
+	// PAC(클라이언트 측 화면) 용 캠 이미지
+	VideoCapture* capture;
+
+	// pac
+	Mat mat_frame;
+	CImage cimage_mfc;
+
+	//doc
+	Mat mat_recv;
+	CImage cimage_recv;
+
+public:
+	CString ip;
+	CString port;
+	CString name;
+
 };

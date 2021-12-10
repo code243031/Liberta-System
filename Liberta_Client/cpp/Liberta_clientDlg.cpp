@@ -17,24 +17,28 @@ CLibertaclientDlg::CLibertaclientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_LIBERTA_CLIENT_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	connect = false;
+	connect_v = false;
+	connect_s = false;
 }
 
 void CLibertaclientDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_DOC, m_video);
 	DDX_Control(pDX, IDC_CHAT, m_chat);
+	DDX_Control(pDX, IDC_DOC, m_video);
+	DDX_Control(pDX, IDC_PAC, m_video_pac);
 }
 
 BEGIN_MESSAGE_MAP(CLibertaclientDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_BN_CLICKED(IDOK, &CLibertaclientDlg::OnBnClickedOk)
-	ON_WM_TIMER()
-	ON_WM_TIMER()
 	ON_WM_DESTROY()
+	ON_BN_CLICKED(IDOK, &CLibertaclientDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDCANCEL, &CLibertaclientDlg::OnBnClickedCancel)
+	ON_WM_TIMER()
+	ON_MESSAGE(UM_RECVIMG, &CLibertaclientDlg::OnUmRecvimg)
 END_MESSAGE_MAP()
 
 bool CLibertaclientDlg::initSession() {
@@ -53,34 +57,56 @@ bool CLibertaclientDlg::initSession() {
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = inet_addr("192.168.219.105"); // ip바꿔 10.20.13.181, 125.181.111.227
+	servAddr.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
 	servAddr.sin_port = htons(8200);
 	iRes = ::connect(m_socketClient, (LPSOCKADDR)&servAddr, sizeof(servAddr));
 
 	return true;
 }
 
-bool CLibertaclientDlg::initVideoSession() {
+void CLibertaclientDlg::initVideoSession() {
+	// 송신용
 	// 윈도우 소켓 라이브러리 초기화
 	int iRes = ::WSAStartup(MAKEWORD(0x02, 0x02), &wsdata_v);
 	if (iRes != ERROR_SUCCESS)
-		return false;
+		return;
 
 	// 소켓 만들기
 	m_socketClient_v = ::socket(PF_INET, SOCK_STREAM, 0);
 	if (m_socketClient_v == INVALID_SOCKET)
-		return false;
+		return;
 
 	iRes = ::WSAAsyncSelect(m_socketClient_v, m_hWnd, 10001, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
 
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = inet_addr("192.168.219.105"); // ip바꿔 10.20.13.181, 192.168.219.103
+	servAddr.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
 	servAddr.sin_port = htons(8201);
 	iRes = ::connect(m_socketClient_v, (LPSOCKADDR)&servAddr, sizeof(servAddr));
+	
+	connect_v = true;
+	// 수신용
+	iRes = ::WSAStartup(MAKEWORD(0x02, 0x02), &wsdata_s);
+	if (iRes != ERROR_SUCCESS)
+		return;
 
-	return true;
+	// 소켓 만들기
+	m_socketClient_s = ::socket(PF_INET, SOCK_STREAM, 0);
+	if (m_socketClient_s == INVALID_SOCKET)
+		return;
+
+	iRes = ::WSAAsyncSelect(m_socketClient_s, m_hWnd, 10002, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
+
+	// IP와 포트를 생성한 소켓에 결합
+	SOCKADDR_IN servAddr2;
+	servAddr2.sin_family = AF_INET;
+	servAddr2.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
+	servAddr2.sin_port = htons(8202);
+	iRes = ::connect(m_socketClient_s, (LPSOCKADDR)&servAddr2, sizeof(servAddr2));
+
+	connect_s = true;
+	return;
 }
 
 // CLibertaclientDlg 메시지 처리기
@@ -104,8 +130,8 @@ BOOL CLibertaclientDlg::OnInitDialog()
 		return FALSE;
 	}
 
-	connect_v = initVideoSession();
-	if (connect_v != true) {
+	initVideoSession();
+	if (connect_v != true || connect_s != true) {
 		AfxMessageBox(_T("ERROR : Failed to connect Server"));
 		return FALSE;
 	}
@@ -258,7 +284,7 @@ void CLibertaclientDlg::OnTimer(UINT_PTR nIDEvent)
 		fopen_s(&fp, "tmp.jpg", "rb");
 		fread(buf, BUFSIZE, 1, fp);
 
-		int iSend = ::send(m_socketClient_v, buf, BUFSIZE, 0);
+		int iSend = ::send(m_socketClient_v, buf, sizeof(buf), 0);
 		if (iSend == SOCKET_ERROR)
 		{
 			// if Send error
@@ -325,7 +351,7 @@ void CLibertaclientDlg::OnDestroy()
 LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
-	if (10000 <= message && message <= 10005)
+	if (10000 == message)
 	{
 		SOCKET hSocket = (SOCKET)wParam;
 
@@ -343,9 +369,7 @@ LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 
 		case FD_READ: // 패킷 수신
 		{
-			int addrlen = sizeof(accept_addr);
-			int addrlen_v = sizeof(accept_addr_v);
-			if (getsockname(hSocket, &accept_addr, &addrlen) == 0 && accept_addr.sa_family == AF_INET && addrlen == sizeof(accept_addr)) {
+			if (message == 10000) {
 				char cBuff[BUFSIZE];
 				memset(&cBuff, 0, sizeof(cBuff));
 				int iLen = ::recv(hSocket, cBuff, sizeof(cBuff), 0);
@@ -362,8 +386,25 @@ LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 
 				SetDlgItemText(IDC_CHAT, str_chat);
 			}
-			if (getsockname(hSocket, &accept_addr, &addrlen) == 0 && accept_addr.sa_family == AF_INET && addrlen == sizeof(accept_addr)) {
-				// 아직 이미지 수신 미구현
+			if (message == 10002) {
+				FILE* fp = NULL;
+				char buf[BUFSIZE];
+				char buf2[BUFSIZE];
+
+				// 이미지 파일 수신
+				ZeroMemory(buf, NULL);
+				fopen_s(&fp, "recv.jpg", "wb");
+
+				// 버퍼 채우기
+				int iLen = ::recv(hSocket, buf, sizeof(buf), 0);
+				fwrite(buf, BUFSIZE, 1, fp);
+
+				// 버퍼를 두번 받으면 딜레이가 사라진다??
+				iLen = ::recv(hSocket, buf2, sizeof(buf2), 0);
+				fwrite(buf2, BUFSIZE, 1, fp);
+				fclose(fp);
+
+				mat_recv = imread("recv.jpg");
 			}
 
 			break;
@@ -399,4 +440,93 @@ BOOL CLibertaclientDlg::PreTranslateMessage(MSG* pMsg)
 	}
 
 	return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+afx_msg LRESULT CLibertaclientDlg::OnUmRecvimg(WPARAM wParam, LPARAM lParam)
+{
+	while (mat_recv.empty()) {
+		return -2;
+	}
+
+	int bpp = 8 * mat_recv.elemSize();
+	assert((bpp == 8 || bpp == 24 || bpp == 32));
+
+	int padding = 0;
+	if (bpp < 32) {
+		padding = 4 - (mat_recv.cols % 4);
+	}
+
+	if (padding == 4) {
+		padding = 0;
+	}
+
+	int border = 0;
+
+	if (bpp < 32) {
+		border = 4 - (mat_recv.cols % 4);
+	}
+
+	Mat mat_temp;
+	if (border > 0 || mat_recv.isContinuous() == false) {
+		cv::copyMakeBorder(mat_recv, mat_temp, 0, 0, 0, border, cv::BORDER_CONSTANT, 0);
+	}
+	else {
+		mat_temp = mat_recv;
+	}
+
+	RECT r;
+	m_video_pac.GetClientRect(&r);
+	cv::Size winSize(r.right, r.bottom);
+
+	cimage_recv.Create(winSize.width, winSize.height, 24);
+
+	BITMAPINFO* bitInfo = (BITMAPINFO*)malloc(sizeof(BITMAPINFO) + 256 * sizeof(RGBQUAD));
+	bitInfo->bmiHeader.biBitCount = bpp;
+	bitInfo->bmiHeader.biWidth = mat_temp.cols;
+	bitInfo->bmiHeader.biHeight = -mat_temp.rows;
+	bitInfo->bmiHeader.biPlanes = 1;
+	bitInfo->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bitInfo->bmiHeader.biCompression = BI_RGB;
+	bitInfo->bmiHeader.biClrImportant = 0;
+	bitInfo->bmiHeader.biClrUsed = 0;
+	bitInfo->bmiHeader.biSizeImage = 0;
+	bitInfo->bmiHeader.biXPelsPerMeter = 0;
+	bitInfo->bmiHeader.biYPelsPerMeter = 0;
+
+	if (bpp == 8) {
+		RGBQUAD* palette = bitInfo->bmiColors;
+		for (int i = 0; i < 256; i++) {
+			palette[i].rgbBlue = palette[i].rgbGreen = palette[i].rgbRed = (BYTE)i;
+		}
+	}
+
+	if (mat_temp.cols == winSize.width && mat_temp.rows == winSize.height) {
+		SetDIBitsToDevice(cimage_recv.GetDC(),
+			0, 0, winSize.width, winSize.height,
+			0, 0, 0, mat_temp.rows,
+			mat_temp.data, bitInfo, DIB_RGB_COLORS);
+	}
+	else {
+		int destx = 0, desty = 0;
+		int destw = winSize.width;
+		int desth = winSize.height;
+
+		int imgx = 0, imgy = 0;
+		int imgWidth = mat_temp.cols - border;
+		int imgHeight = mat_temp.rows;
+
+		StretchDIBits(cimage_recv.GetDC(),
+			destx, desty, destw, desth,
+			imgx, imgy, imgWidth, imgHeight,
+			mat_temp.data, bitInfo, DIB_RGB_COLORS, SRCCOPY);
+	}
+
+	HDC dc = ::GetDC(m_video_pac.m_hWnd);
+	cimage_recv.BitBlt(dc, 0, 0);
+
+	::ReleaseDC(m_video_pac.m_hWnd, dc);
+	cimage_recv.ReleaseDC();
+	cimage_recv.Destroy();
+
+	return 0;
 }

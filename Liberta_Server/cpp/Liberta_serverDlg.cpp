@@ -18,7 +18,8 @@ CLibertaserverDlg::CLibertaserverDlg(CWnd* pParent /*=nullptr*/)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	connect = false;
-
+	connect_v = false;
+	connect_s = false;
 }
 
 CLibertaserverDlg::~CLibertaserverDlg()
@@ -39,13 +40,14 @@ BEGIN_MESSAGE_MAP(CLibertaserverDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_WM_DESTROY()
+	ON_BN_CLICKED(IDOK, &CLibertaserverDlg::OnBnClickedOk)
+	ON_BN_CLICKED(IDCANCEL, &CLibertaserverDlg::OnBnClickedCancel)
+	ON_WM_TIMER()
+	ON_MESSAGE(UM_RECVIMG, &CLibertaserverDlg::OnUmRecvimg)
+	// 이 아래로는 아직 쓸일 없음
 	ON_EN_CHANGE(IDC_CHAT, &CLibertaserverDlg::OnEnChangeChat)
 	ON_EN_CHANGE(IDC_TYPE, &CLibertaserverDlg::OnEnChangeType)
-	ON_BN_CLICKED(IDOK, &CLibertaserverDlg::OnBnClickedOk)
 	ON_STN_CLICKED(IDC_DOC, &CLibertaserverDlg::OnStnClickedDoc)
-	ON_WM_TIMER()
-	ON_BN_CLICKED(IDCANCEL, &CLibertaserverDlg::OnBnClickedCancel)
-	ON_MESSAGE(UM_RECVIMG, &CLibertaserverDlg::OnUmRecvimg)
 END_MESSAGE_MAP()
 
 bool CLibertaserverDlg::initSession() {
@@ -56,11 +58,9 @@ bool CLibertaserverDlg::initSession() {
 
 	// 소켓 만들기
 	m_socketServer = ::socket(PF_INET, SOCK_STREAM, 0);
-	if (INVALID_SOCKET == m_socketServer)
+	if (m_socketServer == INVALID_SOCKET)
 		return false;
 
-	int nTimeOutValue = 1000;
-	
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
 	servAddr.sin_family = AF_INET;
@@ -68,34 +68,33 @@ bool CLibertaserverDlg::initSession() {
 	servAddr.sin_port = htons(8200);
 
 	iRes = ::bind(m_socketServer, (LPSOCKADDR)&servAddr, sizeof(servAddr));
-	if (ERROR_SUCCESS != iRes)
+	if (iRes != ERROR_SUCCESS)
 		return false;
 
 	// Listen
 	iRes = ::listen(m_socketServer, SOMAXCONN);
-	if (ERROR_SUCCESS != iRes)
+	if (iRes != ERROR_SUCCESS)
 		return false;
 
 	// 클라이언트 Accept
 	iRes = ::WSAAsyncSelect(m_socketServer, m_hWnd, 10000, FD_ACCEPT);
-	if (ERROR_SUCCESS != iRes)
+	if (iRes != ERROR_SUCCESS)
 		return false;
 
 	return true;
 }
 
-bool CLibertaserverDlg::initVideoSession() {
+void CLibertaserverDlg::initVideoSession() {
+	// 비디오 수신용
 	// 윈도우 소켓 라이브러리 초기화
 	int iRes = ::WSAStartup(MAKEWORD(0x02, 0x02), &wsdata_v);
-	if (ERROR_SUCCESS != iRes)
-		return false;
+	if (iRes != ERROR_SUCCESS)
+		return;
 
 	// 소켓 만들기
 	m_socketServer_v = ::socket(PF_INET, SOCK_STREAM, 0);
 	if (m_socketServer_v ==INVALID_SOCKET)
-		return false;
-
-	int nTimeOutValue = 1000;
+		return;
 
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
@@ -105,19 +104,56 @@ bool CLibertaserverDlg::initVideoSession() {
 
 	iRes = ::bind(m_socketServer_v, (LPSOCKADDR)&servAddr, sizeof(servAddr));
 	if (iRes != ERROR_SUCCESS)
-		return false;
+		return;
 
 	// Listen
 	iRes = ::listen(m_socketServer_v, SOMAXCONN);
 	if (iRes != ERROR_SUCCESS)
-		return false;
+		return;
 
 	// 클라이언트 Accept
 	iRes = ::WSAAsyncSelect(m_socketServer_v, m_hWnd, 10001, FD_ACCEPT);
 	if (iRes != ERROR_SUCCESS)
-		return false;
+		return;
  
-	return true;
+	connect_v = true;
+	// TODO : 메모리를 초기화해서 프로그램 성능을 개선할 수 있는 방식은 뭐가 있을까?
+
+	// 비디오 송신용
+	// 윈도우 소켓 라이브러리 초기화
+	iRes = ::WSAStartup(MAKEWORD(0x02, 0x02), &wsdata_s);
+	if (ERROR_SUCCESS != iRes)
+		return;
+
+	// 소켓 만들기
+	m_socketServer_s = ::socket(PF_INET, SOCK_STREAM, 0);
+	if (m_socketServer_s == INVALID_SOCKET)
+		return;
+
+	int nTimeOutValue = 1000;
+
+	// IP와 포트를 생성한 소켓에 결합
+	SOCKADDR_IN servAddr2;
+	servAddr2.sin_family = AF_INET;
+	servAddr2.sin_addr.s_addr = INADDR_ANY;
+	servAddr2.sin_port = htons(8202);
+
+	iRes = ::bind(m_socketServer_s, (LPSOCKADDR)&servAddr2, sizeof(servAddr2));
+	if (iRes != ERROR_SUCCESS)
+		return;
+
+	// Listen
+	iRes = ::listen(m_socketServer_s, SOMAXCONN);
+	if (iRes != ERROR_SUCCESS)
+		return;
+
+	// 클라이언트 Accept
+	iRes = ::WSAAsyncSelect(m_socketServer_s, m_hWnd, 10002, FD_ACCEPT);
+	if (iRes != ERROR_SUCCESS)
+		return;
+
+	connect_s = true;
+	return;
 }
 
 // CLibertaserverDlg 메시지 처리기
@@ -139,8 +175,8 @@ BOOL CLibertaserverDlg::OnInitDialog()
 		return FALSE;
 	}
 
-	connect_v = initVideoSession();
-	if (connect_v != true) {
+	initVideoSession();
+	if (connect_v != true || connect_s != true) {
 		AfxMessageBox(_T("네트워크 연결 실패"));
 		return FALSE;
 	}
@@ -205,6 +241,7 @@ void CLibertaserverDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
 	// MAT_FRAME : 이미지
+
 	capture->read(mat_frame);
 
 	int bpp = 8 * mat_frame.elemSize();
@@ -280,15 +317,34 @@ void CLibertaserverDlg::OnTimer(UINT_PTR nIDEvent)
 			mat_temp.data, bitInfo, DIB_RGB_COLORS, SRCCOPY);
 	}
 
+	// 여기서부터 화상이미지 전송
+	if (connect_s == true) {
+		FILE* fp = NULL;
+		char buf[BUFSIZE];
+
+		// 카메라 접근 후 파일로 작성
+		imwrite("tmp.jpg", mat_frame);
+
+		// 파일 열어서 읽고 전송
+		ZeroMemory(buf, NULL);
+		fopen_s(&fp, "tmp.jpg", "rb");
+		fread(buf, BUFSIZE, 1, fp);
+
+		int iSend = ::send(m_socketServer_s, buf, sizeof(buf), 0);
+		if (iSend == SOCKET_ERROR)
+		{
+			// if Send error
+		}
+
+		fclose(fp);
+	}
+
 	HDC dc = ::GetDC(m_video.m_hWnd);
 	cimage_mfc.BitBlt(dc, 0, 0);
 	
 	::ReleaseDC(m_video.m_hWnd, dc);
 	cimage_mfc.ReleaseDC();
 	cimage_mfc.Destroy();
-
-	// 이미지 파일 전송 받은거를 화면에 입력
-	// 왜인지 뭔가 자꾸 안되서 일단 다른 방식 써봄
 
 	CDialogEx::OnTimer(nIDEvent);
 }
@@ -316,8 +372,6 @@ void CLibertaserverDlg::OnBnClickedOk()
 
 	SetDlgItemText(IDC_TYPE, _T(""));
 	SetDlgItemText(IDC_CHAT, res);
-
-	SendMessageW(UM_RECVIMG);
 }
 
 void CLibertaserverDlg::OnBnClickedCancel()
@@ -379,15 +433,16 @@ LRESULT CLibertaserverDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 					int iRes = ::WSAAsyncSelect(hSocket, m_hWnd, 10001, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
 					m_sockClient_v = hSocket;
 				}
-
-				GetDlgItemText(IDC_CHAT, str_chat);
-
-				str_chat.Append(_T("[SYSTEM] : 화상채팅에 접속했습니다."));
-				str_chat.Append(_T("\r\n"));
-
-				SetDlgItemText(IDC_CHAT, str_chat);
 			}
-
+			else if (message == 10002) {
+				int iLen = sizeof(accept_addr_s);
+				SOCKET hSocket = ::accept(m_socketServer_s, &accept_addr_s, &iLen);
+				if (INVALID_SOCKET != hSocket) {
+					// 클라이언트 소켓의 이벤트도 받을 수 있게 접속 시 등록한다.
+					int iRes = ::WSAAsyncSelect(hSocket, m_hWnd, 10002, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
+					m_sockClient_s = hSocket;
+				}
+			}
 
 			break;
 		}
@@ -432,6 +487,7 @@ LRESULT CLibertaserverDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 				fclose(fp);
 
 				mat_recv = imread("recv.jpg");
+
 				SendMessageW(UM_RECVIMG);
 			}
 
@@ -471,87 +527,89 @@ BOOL CLibertaserverDlg::PreTranslateMessage(MSG* pMsg)
 
 afx_msg LRESULT CLibertaserverDlg::OnUmRecvimg(WPARAM wParam, LPARAM lParam)
 {
-	if (!mat_recv.empty() && connect_v == true) {
-		int bpp = 8 * mat_recv.elemSize();
-		assert((bpp == 8 || bpp == 24 || bpp == 32));
-
-		int padding = 0;
-		if (bpp < 32) {
-			padding = 4 - (mat_recv.cols % 4);
-		}
-
-		if (padding == 4) {
-			padding = 0;
-		}
-
-		int border = 0;
-
-		if (bpp < 32) {
-			border = 4 - (mat_recv.cols % 4);
-		}
-
-		Mat mat_temp;
-		if (border > 0 || mat_recv.isContinuous() == false) {
-			cv::copyMakeBorder(mat_recv, mat_temp, 0, 0, 0, border, cv::BORDER_CONSTANT, 0);
-		}
-		else {
-			mat_temp = mat_recv;
-		}
-
-		RECT r;
-		m_video_pac.GetClientRect(&r);
-		cv::Size winSize(r.right, r.bottom);
-
-		cimage_recv.Create(winSize.width, winSize.height, 24);
-
-		BITMAPINFO* bitInfo = (BITMAPINFO*)malloc(sizeof(BITMAPINFO) + 256 * sizeof(RGBQUAD));
-		bitInfo->bmiHeader.biBitCount = bpp;
-		bitInfo->bmiHeader.biWidth = mat_temp.cols;
-		bitInfo->bmiHeader.biHeight = -mat_temp.rows;
-		bitInfo->bmiHeader.biPlanes = 1;
-		bitInfo->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-		bitInfo->bmiHeader.biCompression = BI_RGB;
-		bitInfo->bmiHeader.biClrImportant = 0;
-		bitInfo->bmiHeader.biClrUsed = 0;
-		bitInfo->bmiHeader.biSizeImage = 0;
-		bitInfo->bmiHeader.biXPelsPerMeter = 0;
-		bitInfo->bmiHeader.biYPelsPerMeter = 0;
-
-		if (bpp == 8) {
-			RGBQUAD* palette = bitInfo->bmiColors;
-			for (int i = 0; i < 256; i++) {
-				palette[i].rgbBlue = palette[i].rgbGreen = palette[i].rgbRed = (BYTE)i;
-			}
-		}
-
-		if (mat_temp.cols == winSize.width && mat_temp.rows == winSize.height) {
-			SetDIBitsToDevice(cimage_recv.GetDC(),
-				0, 0, winSize.width, winSize.height,
-				0, 0, 0, mat_temp.rows,
-				mat_temp.data, bitInfo, DIB_RGB_COLORS);
-		}
-		else {
-			int destx = 0, desty = 0;
-			int destw = winSize.width;
-			int desth = winSize.height;
-
-			int imgx = 0, imgy = 0;
-			int imgWidth = mat_temp.cols - border;
-			int imgHeight = mat_temp.rows;
-
-			StretchDIBits(cimage_recv.GetDC(),
-				destx, desty, destw, desth,
-				imgx, imgy, imgWidth, imgHeight,
-				mat_temp.data, bitInfo, DIB_RGB_COLORS, SRCCOPY);
-		}
-
-		HDC dc = ::GetDC(m_video_pac.m_hWnd);
-		cimage_recv.BitBlt(dc, 0, 0);
-
-		::ReleaseDC(m_video_pac.m_hWnd, dc);
-		cimage_recv.ReleaseDC();
-		cimage_recv.Destroy();
+	while (mat_recv.empty()) {
+		return -2;
 	}
+
+	int bpp = 8 * mat_recv.elemSize();
+	assert((bpp == 8 || bpp == 24 || bpp == 32));
+
+	int padding = 0;
+	if (bpp < 32) {
+		padding = 4 - (mat_recv.cols % 4);
+	}
+
+	if (padding == 4) {
+		padding = 0;
+	}
+
+	int border = 0;
+
+	if (bpp < 32) {
+		border = 4 - (mat_recv.cols % 4);
+	}
+
+	Mat mat_temp;
+	if (border > 0 || mat_recv.isContinuous() == false) {
+		cv::copyMakeBorder(mat_recv, mat_temp, 0, 0, 0, border, cv::BORDER_CONSTANT, 0);
+	}
+	else {
+		mat_temp = mat_recv;
+	}
+
+	RECT r;
+	m_video_pac.GetClientRect(&r);
+	cv::Size winSize(r.right, r.bottom);
+
+	cimage_recv.Create(winSize.width, winSize.height, 24);
+
+	BITMAPINFO* bitInfo = (BITMAPINFO*)malloc(sizeof(BITMAPINFO) + 256 * sizeof(RGBQUAD));
+	bitInfo->bmiHeader.biBitCount = bpp;
+	bitInfo->bmiHeader.biWidth = mat_temp.cols;
+	bitInfo->bmiHeader.biHeight = -mat_temp.rows;
+	bitInfo->bmiHeader.biPlanes = 1;
+	bitInfo->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bitInfo->bmiHeader.biCompression = BI_RGB;
+	bitInfo->bmiHeader.biClrImportant = 0;
+	bitInfo->bmiHeader.biClrUsed = 0;
+	bitInfo->bmiHeader.biSizeImage = 0;
+	bitInfo->bmiHeader.biXPelsPerMeter = 0;
+	bitInfo->bmiHeader.biYPelsPerMeter = 0;
+
+	if (bpp == 8) {
+		RGBQUAD* palette = bitInfo->bmiColors;
+		for (int i = 0; i < 256; i++) {
+			palette[i].rgbBlue = palette[i].rgbGreen = palette[i].rgbRed = (BYTE)i;
+		}
+	}
+
+	if (mat_temp.cols == winSize.width && mat_temp.rows == winSize.height) {
+		SetDIBitsToDevice(cimage_recv.GetDC(),
+			0, 0, winSize.width, winSize.height,
+			0, 0, 0, mat_temp.rows,
+			mat_temp.data, bitInfo, DIB_RGB_COLORS);
+	}
+	else {
+		int destx = 0, desty = 0;
+		int destw = winSize.width;
+		int desth = winSize.height;
+
+		int imgx = 0, imgy = 0;
+		int imgWidth = mat_temp.cols - border;
+		int imgHeight = mat_temp.rows;
+
+		StretchDIBits(cimage_recv.GetDC(),
+			destx, desty, destw, desth,
+			imgx, imgy, imgWidth, imgHeight,
+			mat_temp.data, bitInfo, DIB_RGB_COLORS, SRCCOPY);
+	}
+
+	HDC dc = ::GetDC(m_video_pac.m_hWnd);
+	cimage_recv.BitBlt(dc, 0, 0);
+
+	::ReleaseDC(m_video_pac.m_hWnd, dc);
+	cimage_recv.ReleaseDC();
+	cimage_recv.Destroy();
 
 	return 0;
 }

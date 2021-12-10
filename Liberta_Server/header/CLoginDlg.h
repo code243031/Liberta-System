@@ -1,9 +1,7 @@
 ﻿#pragma once
 #include "afxdialogex.h"
 
-
 // CLoginDlg 대화 상자
-
 class CLoginDlg : public CDialogEx
 {
 	DECLARE_DYNAMIC(CLoginDlg)

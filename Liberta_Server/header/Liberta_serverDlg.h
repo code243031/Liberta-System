@@ -39,6 +39,7 @@ protected:
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
+	afx_msg LRESULT OnUmRecvimg(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 
 	// chat socket
@@ -48,7 +49,7 @@ protected:
 	sockaddr accept_addr;
 	bool connect;
 
-	CString str_chat;
+	CString str_chat; // 입력한 채팅 받아오기용
 
 	// video socket
 	WSADATA wsdata_v;
@@ -57,21 +58,27 @@ protected:
 	sockaddr accept_addr_v;
 	bool connect_v;
 
-public:
-	vector<CString> sendBuf;
+	// video socket (just send)
+	WSADATA wsdata_s;
+	SOCKET m_socketServer_s;
+	SOCKET m_sockClient_s;
+	sockaddr accept_addr_s;
+	bool connect_s;
 
+public:
 	afx_msg void OnEnChangeChat();
 	afx_msg void OnEnChangeType();
 	afx_msg void OnBnClickedOk();
 
 	afx_msg void OnStnClickedDoc();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	afx_msg void OnBnClickedCancel();
 	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	
 	// session create
 	bool initSession();
-	bool initVideoSession();
+	void initVideoSession();
 
 	CStatic m_video;
 	CStatic m_video_pac;
@@ -86,12 +93,6 @@ public:
 	//pac
 	Mat mat_recv;
 	CImage cimage_recv;
-
 protected:
 	
-public:
-	afx_msg void OnBnClickedCancel();
-protected:
-	afx_msg LRESULT OnUmRecvimg(WPARAM wParam, LPARAM lParam);
-
 };

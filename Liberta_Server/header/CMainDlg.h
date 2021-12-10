@@ -15,7 +15,6 @@ using namespace std;
 
 class Users {
 public:
-	Users();
 	Users(const char* nm, const char* o2, const char* temp);
 	~Users();
 
@@ -35,6 +34,9 @@ class CMainDlg : public CDialogEx
 	DECLARE_DYNAMIC(CMainDlg)
 
 public:
+	CString doc_nm;
+	CString doc_code;
+
 	CMainDlg(CWnd* pParent = nullptr);   // 표준 생성자입니다.
 	virtual ~CMainDlg();
 
@@ -49,6 +51,7 @@ protected:
 
 public:
 	virtual BOOL OnInitDialog();
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedCancel();
 	afx_msg void OnLbnSelchangeList();
@@ -65,5 +68,4 @@ public:
 
 	vector<Users> users;
 	CListCtrl pac_data;
-	virtual BOOL PreTranslateMessage(MSG* pMsg);
 };
