@@ -11,6 +11,7 @@
 
 #define BUFSIZE 44000
 #define UM_RECVIMG WM_USER + 1
+#define UM_SENDIMG WM_USER + 2
 
 using namespace cv;
 using namespace std;
@@ -57,6 +58,7 @@ protected:
 	SOCKET m_sockClient_v;
 	sockaddr accept_addr_v;
 	bool connect_v;
+	bool connect_addr_v;
 
 	// video socket (just send)
 	WSADATA wsdata_s;
@@ -64,6 +66,7 @@ protected:
 	SOCKET m_sockClient_s;
 	sockaddr accept_addr_s;
 	bool connect_s;
+	bool connect_addr_s;
 
 public:
 	afx_msg void OnEnChangeChat();
@@ -94,5 +97,5 @@ public:
 	Mat mat_recv;
 	CImage cimage_recv;
 protected:
-	
+	afx_msg LRESULT OnUmSendimg(WPARAM wParam, LPARAM lParam);
 };

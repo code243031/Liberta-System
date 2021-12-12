@@ -67,6 +67,7 @@ BEGIN_MESSAGE_MAP(CMainDlg, CDialogEx)
 	ON_LBN_SELCHANGE(IDC_LIST, &CMainDlg::OnLbnSelchangeList)
 	ON_WM_PAINT()
 	ON_NOTIFY(LVN_ITEMCHANGED, IDC_DATA, &CMainDlg::OnLvnItemchangedData)
+	ON_COMMAND(ID_EXIT, &CMainDlg::OnExit)
 END_MESSAGE_MAP()
 
 vector<string> splitStr(const string& str) {
@@ -130,6 +131,8 @@ BOOL CMainDlg::OnInitDialog()
 
 	fin.close();
 
+	res.Format(_T("%s %s %s"), doc_nm, doc_code, doc_port);
+
 	return TRUE;  // return TRUE unless you set the focus to a control
 				  // 예외: OCX 속성 페이지는 FALSE를 반환해야 합니다.
 }
@@ -189,4 +192,12 @@ BOOL CMainDlg::PreTranslateMessage(MSG* pMsg)
 	}
 
 	return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+// Menu Commands
+void CMainDlg::OnExit()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+
+	OnBnClickedCancel();
 }

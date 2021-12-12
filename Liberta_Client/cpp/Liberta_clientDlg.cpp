@@ -19,7 +19,7 @@ CLibertaclientDlg::CLibertaclientDlg(CWnd* pParent /*=nullptr*/)
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	connect = false;
 	connect_v = false;
-	connect_s = false;
+	// connect_s = false;
 }
 
 void CLibertaclientDlg::DoDataExchange(CDataExchange* pDX)
@@ -39,6 +39,7 @@ BEGIN_MESSAGE_MAP(CLibertaclientDlg, CDialogEx)
 	ON_BN_CLICKED(IDCANCEL, &CLibertaclientDlg::OnBnClickedCancel)
 	ON_WM_TIMER()
 	ON_MESSAGE(UM_RECVIMG, &CLibertaclientDlg::OnUmRecvimg)
+	ON_MESSAGE(UM_SENDIMG, &CLibertaclientDlg::OnUmSendimg)
 END_MESSAGE_MAP()
 
 bool CLibertaclientDlg::initSession() {
@@ -57,7 +58,7 @@ bool CLibertaclientDlg::initSession() {
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
+	servAddr.sin_addr.s_addr = inet_addr("10.20.13.242"); // ip바꿔
 	servAddr.sin_port = htons(8200);
 	iRes = ::connect(m_socketClient, (LPSOCKADDR)&servAddr, sizeof(servAddr));
 
@@ -81,11 +82,13 @@ void CLibertaclientDlg::initVideoSession() {
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr;
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
+	servAddr.sin_addr.s_addr = inet_addr("10.20.13.242"); // ip바꿔
 	servAddr.sin_port = htons(8201);
 	iRes = ::connect(m_socketClient_v, (LPSOCKADDR)&servAddr, sizeof(servAddr));
 	
 	connect_v = true;
+	// TODO :
+	
 	// 수신용
 	iRes = ::WSAStartup(MAKEWORD(0x02, 0x02), &wsdata_s);
 	if (iRes != ERROR_SUCCESS)
@@ -101,7 +104,7 @@ void CLibertaclientDlg::initVideoSession() {
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr2;
 	servAddr2.sin_family = AF_INET;
-	servAddr2.sin_addr.s_addr = inet_addr("10.20.13.181"); // ip바꿔
+	servAddr2.sin_addr.s_addr = inet_addr("10.20.13.242"); // ip바꿔
 	servAddr2.sin_port = htons(8202);
 	iRes = ::connect(m_socketClient_s, (LPSOCKADDR)&servAddr2, sizeof(servAddr2));
 
@@ -273,24 +276,7 @@ void CLibertaclientDlg::OnTimer(UINT_PTR nIDEvent)
 
 	// 여기서부터 화상이미지 전송
 	if (connect_v == true) {
-		FILE* fp = NULL;
-		char buf[BUFSIZE];
-
-		// 카메라 접근 후 파일로 작성
-		imwrite("tmp.jpg", mat_frame);
-
-		// 파일 열어서 읽고 전송
-		ZeroMemory(buf, NULL);
-		fopen_s(&fp, "tmp.jpg", "rb");
-		fread(buf, BUFSIZE, 1, fp);
-
-		int iSend = ::send(m_socketClient_v, buf, sizeof(buf), 0);
-		if (iSend == SOCKET_ERROR)
-		{
-			// if Send error
-		}
-
-		fclose(fp);
+		SendMessageW(UM_SENDIMG);
 	}
 	
 	HDC dc = ::GetDC(m_video.m_hWnd);
@@ -351,7 +337,7 @@ void CLibertaclientDlg::OnDestroy()
 LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
-	if (10000 == message)
+	if (10000 <= message && message <= 10005)
 	{
 		SOCKET hSocket = (SOCKET)wParam;
 
@@ -386,7 +372,7 @@ LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 
 				SetDlgItemText(IDC_CHAT, str_chat);
 			}
-			if (message == 10002) {
+			else if (message == 10002) {
 				FILE* fp = NULL;
 				char buf[BUFSIZE];
 				char buf2[BUFSIZE];
@@ -405,8 +391,9 @@ LRESULT CLibertaclientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 				fclose(fp);
 
 				mat_recv = imread("recv.jpg");
-			}
 
+				SendMessageW(UM_RECVIMG);
+			}
 			break;
 		}
 		/*
@@ -527,6 +514,33 @@ afx_msg LRESULT CLibertaclientDlg::OnUmRecvimg(WPARAM wParam, LPARAM lParam)
 	::ReleaseDC(m_video_pac.m_hWnd, dc);
 	cimage_recv.ReleaseDC();
 	cimage_recv.Destroy();
+
+	return 0;
+}
+
+afx_msg LRESULT CLibertaclientDlg::OnUmSendimg(WPARAM wParam, LPARAM lParam)
+{
+	FILE* fp = NULL;
+	char buf[BUFSIZE];
+
+	// 카메라 접근 후 파일로 작성
+	imwrite("tmp.jpg", mat_frame);
+
+	// 파일 열어서 읽고 전송
+	ZeroMemory(buf, NULL);
+	fopen_s(&fp, "tmp.jpg", "rb");
+	fread(buf, BUFSIZE, 1, fp);
+
+	int iSend = ::send(m_socketClient_v, buf, sizeof(buf), 0);
+	if (iSend == SOCKET_ERROR)
+	{
+		GetDlgItemText(IDC_CHAT, str_chat);
+		str_chat.Append(_T("[SYSTEM] : 이미지 전송 실패"));
+		str_chat.Append(_T("\r\n"));
+		SetDlgItemText(IDC_CHAT, str_chat);
+	}
+
+	fclose(fp);
 
 	return 0;
 }

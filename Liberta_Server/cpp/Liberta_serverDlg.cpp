@@ -20,6 +20,9 @@ CLibertaserverDlg::CLibertaserverDlg(CWnd* pParent /*=nullptr*/)
 	connect = false;
 	connect_v = false;
 	connect_s = false;
+
+	connect_addr_v = false;
+	connect_addr_s = false;
 }
 
 CLibertaserverDlg::~CLibertaserverDlg()
@@ -48,6 +51,7 @@ BEGIN_MESSAGE_MAP(CLibertaserverDlg, CDialogEx)
 	ON_EN_CHANGE(IDC_CHAT, &CLibertaserverDlg::OnEnChangeChat)
 	ON_EN_CHANGE(IDC_TYPE, &CLibertaserverDlg::OnEnChangeType)
 	ON_STN_CLICKED(IDC_DOC, &CLibertaserverDlg::OnStnClickedDoc)
+	ON_MESSAGE(UM_SENDIMG, &CLibertaserverDlg::OnUmSendimg)
 END_MESSAGE_MAP()
 
 bool CLibertaserverDlg::initSession() {
@@ -129,8 +133,6 @@ void CLibertaserverDlg::initVideoSession() {
 	m_socketServer_s = ::socket(PF_INET, SOCK_STREAM, 0);
 	if (m_socketServer_s == INVALID_SOCKET)
 		return;
-
-	int nTimeOutValue = 1000;
 
 	// IP와 포트를 생성한 소켓에 결합
 	SOCKADDR_IN servAddr2;
@@ -318,7 +320,8 @@ void CLibertaserverDlg::OnTimer(UINT_PTR nIDEvent)
 	}
 
 	// 여기서부터 화상이미지 전송
-	if (connect_s == true) {
+	if (connect_addr_s == true) {
+
 		FILE* fp = NULL;
 		char buf[BUFSIZE];
 
@@ -330,10 +333,10 @@ void CLibertaserverDlg::OnTimer(UINT_PTR nIDEvent)
 		fopen_s(&fp, "tmp.jpg", "rb");
 		fread(buf, BUFSIZE, 1, fp);
 
-		int iSend = ::send(m_socketServer_s, buf, sizeof(buf), 0);
+		int iSend = ::send(m_sockClient_s, buf, sizeof(buf), 0);
 		if (iSend == SOCKET_ERROR)
 		{
-			// if Send error
+			// socket error : 메세지를 수신 못할 때
 		}
 
 		fclose(fp);
@@ -367,7 +370,7 @@ void CLibertaserverDlg::OnBnClickedOk()
 	int iSend = ::send(m_sockClient, cBuff, sizeof(cBuff), 0);
 	if (iSend == SOCKET_ERROR)
 	{
-		// Send error
+		// send errors
 	}
 
 	SetDlgItemText(IDC_TYPE, _T(""));
@@ -394,6 +397,10 @@ void CLibertaserverDlg::OnDestroy()
 
 	::closesocket(m_socketServer_v);
 	::closesocket(m_sockClient_v);
+
+	::closesocket(m_socketServer_s);
+	::closesocket(m_sockClient_s);
+
 	WSACleanup();
 
 	CDialog::OnDestroy();
@@ -433,6 +440,14 @@ LRESULT CLibertaserverDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 					int iRes = ::WSAAsyncSelect(hSocket, m_hWnd, 10001, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
 					m_sockClient_v = hSocket;
 				}
+
+				GetDlgItemText(IDC_CHAT, str_chat);
+
+				str_chat.Append(_T("[SYSTEM] : 이미지 수신소켓 활성화"));
+				str_chat.Append(_T("\r\n"));
+
+				SetDlgItemText(IDC_CHAT, str_chat);
+				connect_addr_v = true;
 			}
 			else if (message == 10002) {
 				int iLen = sizeof(accept_addr_s);
@@ -442,15 +457,20 @@ LRESULT CLibertaserverDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam
 					int iRes = ::WSAAsyncSelect(hSocket, m_hWnd, 10002, FD_CONNECT | FD_READ | FD_WRITE | FD_CLOSE);
 					m_sockClient_s = hSocket;
 				}
-			}
 
+				GetDlgItemText(IDC_CHAT, str_chat);
+
+				str_chat.Append(_T("[SYSTEM] : 이미지 송신소켓 활성화"));
+				str_chat.Append(_T("\r\n"));
+
+				SetDlgItemText(IDC_CHAT, str_chat);
+				connect_addr_s = true;
+			}
+			
 			break;
 		}
 		case FD_READ: // 데이터 수신
 		{
-			int addrlen = sizeof(accept_addr);
-			int addrlen_v = sizeof(accept_addr_v);
-
 			if (message == 10000) {
 				char cBuff[BUFSIZE];
 				memset(&cBuff, 0, sizeof(cBuff));
@@ -614,6 +634,11 @@ afx_msg LRESULT CLibertaserverDlg::OnUmRecvimg(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+afx_msg LRESULT CLibertaserverDlg::OnUmSendimg(WPARAM wParam, LPARAM lParam)
+{
+	return 0;
+}
+
 void CLibertaserverDlg::OnEnChangeChat()
 {
 	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
@@ -638,3 +663,4 @@ void CLibertaserverDlg::OnStnClickedDoc()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 }
+

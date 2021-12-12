@@ -36,6 +36,7 @@ class CMainDlg : public CDialogEx
 public:
 	CString doc_nm;
 	CString doc_code;
+	CString doc_port;
 
 	CMainDlg(CWnd* pParent = nullptr);   // 표준 생성자입니다.
 	virtual ~CMainDlg();
@@ -68,4 +69,5 @@ public:
 
 	vector<Users> users;
 	CListCtrl pac_data;
+	afx_msg void OnExit();
 };

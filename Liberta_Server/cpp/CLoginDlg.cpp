@@ -69,6 +69,7 @@ void CLoginDlg::OnBnClickedOk()
 		CString sql = _T("");
 		sql.Format(_T("SELECT * FROM doc_info where ID='%s' AND PW='%s'"), (LPCTSTR)id, (LPCTSTR)pw);
 
+		mysql_query(con, "set Names euckr");
 		if (mysql_query(con, (CStringA)sql))
 		{
 			finish_with_error(con);
@@ -85,37 +86,37 @@ void CLoginDlg::OnBnClickedOk()
 		// mysql_num_fields 함수로 테이블의 Column 수를 알아낸다
 		MYSQL_ROW row = mysql_fetch_row(result);
 		CString res;
-		/*
-		while (row = mysql_fetch_row(result))
-		{
-			res.Format(_T("%s"), row[0]);
-			printf("\n");
-		}
 
-		AfxMessageBox(res);
-		*/
 		if (row == nullptr) {
 			AfxMessageBox(_T("아이디/비밀번호가 존재하지 않습니다!"));
 			mysql_close(con);
 			return;
 		}
 
-		//id = row[1];
-		//pw = row[4];
+		while (row != NULL)
+		{
+			TRACE("%s %s %s %s", row[0], row[1], row[2], row[3]); // 디버그용
+			// 로그인 성공 시 다이얼로그 연결
+			if (strcmp(row[0], (CStringA)id) == 0 && strcmp(row[2], (CStringA)pw) == 0) {
+
+				this->ShowWindow(SW_HIDE);
+
+				CMainDlg dlg;
+				dlg.doc_nm = row[3];
+				dlg.doc_code = code;
+				dlg.doc_port = row[1];
+
+				dlg.DoModal();
+
+				this->ShowWindow(SW_SHOW);
+				break;
+			}
+
+			row = mysql_fetch_row(result);
+		}
 
 		mysql_close(con);
 	}
-
-	// 로그인 성공 시 다이얼로그 연결
-	this->ShowWindow(SW_HIDE);
-
-	CMainDlg dlg;
-	//dlg.doc_nm = id;
-	//dlg.doc_code = code;
-
-	dlg.DoModal();
-
-	this->ShowWindow(SW_SHOW);
 }
 
 void CLoginDlg::OnBnClickedCancel()

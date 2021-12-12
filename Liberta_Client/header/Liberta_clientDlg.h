@@ -8,6 +8,7 @@
 
 #define BUFSIZE 44000
 #define UM_RECVIMG WM_USER + 1
+#define UM_SENDIMG WM_USER + 2
 
 using namespace cv;
 using namespace std;
@@ -42,19 +43,19 @@ protected:
 	// chat socket
 	WSADATA wsdata;
 	SOCKET m_socketClient;
-	sockaddr accept_addr;
+	// sockaddr accept_addr;
 	bool connect;
 
 	// video socket(just send)
 	WSADATA wsdata_v;
 	SOCKET m_socketClient_v;
-	sockaddr accept_addr_v;
+	// sockaddr accept_addr_v;
 	bool connect_v;
 
 	// video socket
 	WSADATA wsdata_s;
 	SOCKET m_socketClient_s;
-	sockaddr accept_addr_s;
+	// sockaddr accept_addr_s;
 	bool connect_s;
 
 public:
@@ -92,4 +93,6 @@ public:
 	CString port;
 	CString name;
 
+protected:
+	afx_msg LRESULT OnUmSendimg(WPARAM wParam, LPARAM lParam);
 };
